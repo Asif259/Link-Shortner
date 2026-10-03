@@ -9,10 +9,11 @@ import { LinksTableRow } from '@/components/dashboard/links/LinksTableRow';
 import { CreateLinkDialog } from '@/components/dashboard/CreateLinkDialog';
 import { EditLinkDialog } from '@/components/dashboard/EditLinkDialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { useToast } from '@/components/ui/toast';
 import { getLinks, deleteLink, updateLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
-import { Loader2, Menu, X, LinkIcon, Sparkles } from 'lucide-react';
+import { Loader2, Menu, X, LinkIcon, Sparkles, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SHORT_URL || 'http://localhost:3000';
@@ -168,9 +169,12 @@ export default function LinksPage() {
           {/* Table Container Card */}
           <div className="bg-white rounded-2xl border border-stone-200/70 shadow-xs overflow-hidden">
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-24 text-stone-400 gap-2">
-                <Loader2 className="w-7 h-7 animate-spin text-[#236B56]" />
-                <span className="text-sm font-medium text-stone-600">Loading your links…</span>
+              /* Principle 6: Skeleton loading instead of generic spinner */
+              <div>
+                <div className="border-b border-stone-100 bg-[#F4F5F3]/70 py-3 px-4 flex justify-between text-xs font-semibold text-stone-400 uppercase tracking-wide">
+                  <span>Loading short links…</span>
+                </div>
+                <TableSkeleton rows={6} />
               </div>
             ) : filteredLinks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 gap-3.5 text-stone-400">
@@ -245,6 +249,16 @@ export default function LinksPage() {
           </div>
         </main>
       </div>
+
+      {/* Mobile Thumb-reach Primary CTA (Principle 18) */}
+      <button
+        type="button"
+        onClick={() => setIsCreateOpen(true)}
+        className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-[#236B56] text-white rounded-full shadow-lg hover:bg-[#1C5745] active:scale-95 transition-all flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-[#236B56]/30"
+        aria-label="Create short link"
+      >
+        <Plus className="w-6 h-6 stroke-[2.5]" />
+      </button>
 
       {/* Create Link Dialog */}
       <CreateLinkDialog
