@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import type { Link } from '../../links/entities/link.entity.js';
+import type { Group } from '../../groups/entities/group.entity.js';
 
 /**
  * User entity.
@@ -45,4 +46,8 @@ export class User {
 
   @OneToMany('Link', (link: Link) => link.user)
   links!: Link[];
+
+  @OneToMany('Group', (group: Group) => group.user)
+  groups!: Group[];
 }
+

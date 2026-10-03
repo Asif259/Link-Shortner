@@ -61,6 +61,7 @@ export interface OverviewResponse {
   devices: GroupedAnalyticsItem[];
   browsers: GroupedAnalyticsItem[];
   countries: GroupedAnalyticsItem[];
+  referrers: GroupedAnalyticsItem[];
   topLinks: TopLinkItem[];
   recentLinks: RecentLinkItem[];
   rangeInfo?: {
@@ -522,7 +523,24 @@ export class AnalyticsService {
       .groupBy("COALESCE(click.country, 'Unknown')")
       .orderBy('clicks', 'DESC');
 
-    // 6. Top links by click count IN SELECTED RANGE
+    // 6. Referrers in range
+    const referrersQb = this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .select("COALESCE(click.referrer, 'Direct / None')", 'name')
+      .addSelect('COUNT(*)::int', 'clicks')
+      .where('link.user_id = :userId', { userId });
+    if (startDateTime) {
+      referrersQb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      referrersQb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+    referrersQb
+      .groupBy("COALESCE(click.referrer, 'Direct / None')")
+      .orderBy('clicks', 'DESC');
+
+    // 7. Top links by click count IN SELECTED RANGE
     let topLinksJoinCondition = '1=1';
     const topLinksParams: Record<string, any> = {};
     if (startDateTime) {
@@ -550,6 +568,7 @@ export class AnalyticsService {
       devices,
       browsers,
       countries,
+      referrers,
       topLinks,
       recentLinks,
       linksCounts,
@@ -568,6 +587,7 @@ export class AnalyticsService {
       devicesQb.getRawMany<{ name: string; clicks: number }>(),
       browsersQb.getRawMany<{ name: string; clicks: number }>(),
       countriesQb.getRawMany<{ name: string; clicks: number }>(),
+      referrersQb.getRawMany<{ name: string; clicks: number }>(),
       topLinksQb.getRawAndEntities(),
 
       // 5 most recently created links
@@ -621,6 +641,7 @@ export class AnalyticsService {
       devices: devices.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
       browsers: browsers.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
       countries: countries.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
+      referrers: referrers.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
       topLinks: mapLinkEntities(topLinks, topLinks.raw as Record<string, any>[]),
       recentLinks: recentLinks.entities.map((link, idx) => {
         const rawRow = (recentLinks.raw as Record<string, any>[])[idx] || {};

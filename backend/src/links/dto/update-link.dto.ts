@@ -4,9 +4,11 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Length,
   Matches,
   registerDecorator,
+  ValidateIf,
   ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
@@ -113,4 +115,9 @@ export class UpdateLinkDto {
   @IsOptional()
   @IsIn(['active', 'disabled'])
   status?: 'active' | 'disabled';
+
+  @IsOptional()
+  @ValidateIf((_obj, val) => val !== null && val !== undefined)
+  @IsUUID('4', { message: 'groupId must be a valid UUID or null' })
+  groupId?: string | null;
 }

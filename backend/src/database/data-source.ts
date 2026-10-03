@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import { User } from '../users/entities/user.entity.js';
 import { Link } from '../links/entities/link.entity.js';
 import { Click } from '../analytics/entities/click.entity.js';
+import { Group } from '../groups/entities/group.entity.js';
 
 config();
 
@@ -16,7 +17,7 @@ export const AppDataSource = new DataSource(
     ? {
         type: 'postgres',
         url: databaseUrl,
-        entities: [User, Link, Click],
+        entities: [User, Link, Click, Group],
         migrations: ['dist/database/migrations/*.js'],
         synchronize: false,
         ssl: sslMode ? { rejectUnauthorized: false } : false,
@@ -28,7 +29,7 @@ export const AppDataSource = new DataSource(
         username: process.env.DATABASE_USER || 'postgres',
         password: process.env.DATABASE_PASSWORD || 'postgres',
         database: process.env.DATABASE_NAME || 'link_shortener',
-        entities: [User, Link, Click],
+        entities: [User, Link, Click, Group],
         migrations: ['dist/database/migrations/*.js'],
         synchronize: false,
         ssl: sslMode ? { rejectUnauthorized: false } : false,

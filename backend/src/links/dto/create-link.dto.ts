@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Length,
   Matches,
   registerDecorator,
@@ -146,4 +147,8 @@ export class CreateLinkDto {
   })
   @IsNotReservedAlias()
   shortCode?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'groupId must be a valid UUID' })
+  groupId?: string;
 }

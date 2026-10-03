@@ -87,6 +87,7 @@ export class LinksService {
       userId,
       shortCode,
       originalUrl: dto.originalUrl,
+      groupId: dto.groupId ?? null,
     });
 
     const saved = await this.linkRepository.save(link);
@@ -199,6 +200,7 @@ export class LinksService {
     }
 
     if (dto.originalUrl) link.originalUrl = dto.originalUrl;
+    if (dto.groupId !== undefined) link.groupId = dto.groupId;
 
     const saved = await this.linkRepository.save(link);
     // preserve click count from before (do a fresh count query)

@@ -7,9 +7,11 @@ import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { LinksModule } from './links/links.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
+import { GroupsModule } from './groups/groups.module.js';
 import { User } from './users/entities/user.entity.js';
 import { Link } from './links/entities/link.entity.js';
 import { Click } from './analytics/entities/click.entity.js';
+import { Group } from './groups/entities/group.entity.js';
 
 @Module({
   imports: [
@@ -58,7 +60,7 @@ import { Click } from './analytics/entities/click.entity.js';
           return {
             type: 'postgres',
             url: databaseUrl,
-            entities: [User, Link, Click],
+            entities: [User, Link, Click, Group],
             autoLoadEntities: true,
             synchronize: false,
             ssl: isSsl ? { rejectUnauthorized: false } : false,
@@ -73,7 +75,7 @@ import { Click } from './analytics/entities/click.entity.js';
           password: configService.get<string>('DATABASE_PASSWORD', 'postgres'),
           database: configService.get<string>('DATABASE_NAME', 'link_shortener'),
 
-          entities: [User, Link, Click],
+          entities: [User, Link, Click, Group],
           autoLoadEntities: true,
 
           // Set to false in production & development when using migrations
@@ -87,6 +89,7 @@ import { Click } from './analytics/entities/click.entity.js';
     AuthModule,
     LinksModule,
     AnalyticsModule,
+    GroupsModule,
   ],
   /**
    * Global ThrottlerGuard applies the 'default' throttler to every route.
