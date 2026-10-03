@@ -15,6 +15,7 @@ describe('AnalyticsService', () => {
   beforeEach(async () => {
     linkRepo = {
       findOne: vi.fn(),
+      createQueryBuilder: vi.fn(),
     };
 
     clickRepo = {
@@ -115,6 +116,63 @@ describe('AnalyticsService', () => {
       expect(res.csv).toContain('"shortCode","originalUrl","timestamp","country","device","browser","referrer"');
       expect(res.csv).toContain('"react-docs","https://react.dev"');
       expect(res.csv).toContain('"US","Desktop","Chrome","https://google.com"');
+    });
+  });
+
+  describe('getOverview', () => {
+    it('should aggregate overview metrics and map entities safely without crashing', async () => {
+      const mockClickQb = {
+        innerJoin: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        getCount: vi.fn().mockResolvedValue(15),
+        getRawMany: vi.fn().mockResolvedValue([]),
+      };
+      clickRepo.createQueryBuilder.mockReturnValue(mockClickQb);
+
+      const mockLinkQb = {
+        leftJoin: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        setParameter: vi.fn().mockReturnThis(),
+        getRawAndEntities: vi.fn().mockResolvedValue({
+          entities: [
+            {
+              id: 'link-1',
+              shortCode: 'abc',
+              originalUrl: 'https://example.com',
+              isActive: true,
+              createdAt: new Date('2026-10-01T00:00:00Z'),
+            },
+          ],
+          raw: [{ clickCount: 5 }],
+        }),
+        getRawOne: vi.fn().mockResolvedValue({ total: 1, active: 1, thisMonth: 1 }),
+      };
+      linkRepo.createQueryBuilder.mockReturnValue(mockLinkQb);
+
+      const result = await service.getOverview('user-1', { range: '30d', timezone: 'Asia/Dhaka' });
+
+      expect(result.totalClicks).toBe(15);
+      expect(result.clicksToday).toBe(15);
+      expect(result.totalLinks).toBe(1);
+      expect(result.activeLinks).toBe(1);
+      expect(result.linksThisMonth).toBe(1);
+      expect(result.topLinks).toHaveLength(1);
+      expect(result.topLinks[0].shortCode).toBe('abc');
+      expect(result.topLinks[0].clickCount).toBe(5);
+      expect(result.recentLinks).toHaveLength(1);
+      expect(result.recentLinks[0].createdAt).toBe('2026-10-01T00:00:00.000Z');
+      expect(result.rangeInfo?.timezone).toBe('Asia/Dhaka');
+      expect(result.timeline.length).toBeGreaterThan(0);
     });
   });
 

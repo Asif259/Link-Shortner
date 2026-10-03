@@ -536,7 +536,7 @@ export class AnalyticsService {
     const topLinksQb = this.linkRepository
       .createQueryBuilder('link')
       .leftJoin('link.clicks', 'click', topLinksJoinCondition, topLinksParams)
-      .select(['link.id', 'link.short_code', 'link.original_url', 'link.is_active'])
+      .select(['link.id', 'link.shortCode', 'link.originalUrl', 'link.isActive'])
       .addSelect('COUNT(click.id)::int', 'clickCount')
       .where('link.user_id = :userId', { userId })
       .groupBy('link.id')
@@ -574,11 +574,11 @@ export class AnalyticsService {
       this.linkRepository
         .createQueryBuilder('link')
         .leftJoin('link.clicks', 'click')
-        .select(['link.id', 'link.short_code', 'link.original_url', 'link.is_active', 'link.created_at'])
+        .select(['link.id', 'link.shortCode', 'link.originalUrl', 'link.isActive', 'link.createdAt'])
         .addSelect('COUNT(click.id)::int', 'clickCount')
         .where('link.user_id = :userId', { userId })
         .groupBy('link.id')
-        .orderBy('link.created_at', 'DESC')
+        .orderBy('link.createdAt', 'DESC')
         .limit(5)
         .getRawAndEntities(),
 
@@ -598,15 +598,18 @@ export class AnalyticsService {
 
     const mapLinkEntities = (
       result: Awaited<typeof topLinks>,
-      raw: { clickCount: number }[],
+      raw: Record<string, any>[],
     ): TopLinkItem[] =>
-      result.entities.map((link, idx) => ({
-        id: link.id,
-        shortCode: link.shortCode,
-        originalUrl: link.originalUrl,
-        clickCount: Number(raw[idx]?.clickCount ?? 0),
-        isActive: link.isActive,
-      }));
+      result.entities.map((link, idx) => {
+        const rawRow = raw[idx] || {};
+        return {
+          id: link.id || rawRow.link_id || rawRow.id,
+          shortCode: link.shortCode || rawRow.link_short_code || rawRow.short_code || '',
+          originalUrl: link.originalUrl || rawRow.link_original_url || rawRow.original_url || '',
+          clickCount: Number(rawRow.clickCount ?? 0),
+          isActive: link.isActive ?? rawRow.link_is_active ?? rawRow.is_active ?? true,
+        };
+      });
 
     return {
       totalClicks: Number(totalClicksResult),
@@ -618,15 +621,23 @@ export class AnalyticsService {
       devices: devices.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
       browsers: browsers.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
       countries: countries.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
-      topLinks: mapLinkEntities(topLinks, topLinks.raw as { clickCount: number }[]),
-      recentLinks: recentLinks.entities.map((link, idx) => ({
-        id: link.id,
-        shortCode: link.shortCode,
-        originalUrl: link.originalUrl,
-        clickCount: Number((recentLinks.raw as { clickCount: number }[])[idx]?.clickCount ?? 0),
-        isActive: link.isActive,
-        createdAt: link.createdAt.toISOString(),
-      })),
+      topLinks: mapLinkEntities(topLinks, topLinks.raw as Record<string, any>[]),
+      recentLinks: recentLinks.entities.map((link, idx) => {
+        const rawRow = (recentLinks.raw as Record<string, any>[])[idx] || {};
+        const createdAtVal = link.createdAt || rawRow.link_created_at || rawRow.created_at;
+        const createdAtIso = createdAtVal instanceof Date
+          ? createdAtVal.toISOString()
+          : (createdAtVal ? new Date(createdAtVal).toISOString() : new Date().toISOString());
+
+        return {
+          id: link.id || rawRow.link_id || rawRow.id,
+          shortCode: link.shortCode || rawRow.link_short_code || rawRow.short_code || '',
+          originalUrl: link.originalUrl || rawRow.link_original_url || rawRow.original_url || '',
+          clickCount: Number(rawRow.clickCount ?? (recentLinks.raw as any[])[idx]?.clickCount ?? 0),
+          isActive: link.isActive ?? rawRow.link_is_active ?? rawRow.is_active ?? true,
+          createdAt: createdAtIso,
+        };
+      }),
       rangeInfo: {
         range,
         startDate: startDateTime ? startDateTime.toISOString() : null,
