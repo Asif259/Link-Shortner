@@ -3,11 +3,11 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Smartphone, Monitor, Tablet } from 'lucide-react';
-import { mockDashboardData, type DeviceShare } from '@/lib/mock-dashboard-data';
+import type { DeviceItem } from '@/lib/hooks/useDashboardData';
 
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: Array<{ payload: DeviceShare }>;
+  payload?: Array<{ payload: DeviceItem }>;
 }
 
 function CustomTooltip({ active, payload }: CustomTooltipProps) {
@@ -25,14 +25,19 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
   return null;
 }
 
-export function DeviceChart() {
-  const devices: DeviceShare[] = mockDashboardData.devices;
+interface DeviceChartProps {
+  devices: DeviceItem[];
+  totalClicks: number;
+}
 
+export function DeviceChart({ devices, totalClicks }: DeviceChartProps) {
   const iconMap: Record<string, React.ElementType> = {
     Mobile: Smartphone,
     Desktop: Monitor,
     Tablet: Tablet,
   };
+
+  const topDevice = devices[0];
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-stone-200/60 shadow-2xs flex flex-col justify-between">
@@ -44,36 +49,45 @@ export function DeviceChart() {
       <div className="my-2 flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Donut Chart */}
         <div className="w-40 h-40 relative shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Tooltip content={<CustomTooltip />} />
-              <Pie
-                data={devices}
-                dataKey="percentage"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={46}
-                outerRadius={68}
-                paddingAngle={4}
-                strokeWidth={0}
-              >
-                {devices.map((entry) => (
-                  <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          {/* Centered Stat */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-xl font-bold text-[#1A2621]">68%</span>
-            <span className="text-[10px] text-[#8E9F97] uppercase tracking-wider font-semibold">
-              Mobile
-            </span>
-          </div>
+          {devices.length === 0 ? (
+            <div className="w-full h-full flex items-center justify-center text-xs text-stone-400">
+              No data
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Pie
+                    data={devices}
+                    dataKey="percentage"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={46}
+                    outerRadius={68}
+                    paddingAngle={4}
+                    strokeWidth={0}
+                  >
+                    {devices.map((entry) => (
+                      <Cell key={`cell-${entry.name}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              {topDevice && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-bold text-[#1A2621]">{topDevice.percentage}%</span>
+                  <span className="text-[10px] text-[#8E9F97] uppercase tracking-wider font-semibold">
+                    {topDevice.name}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Legend beside chart */}
+        {/* Legend */}
         <div className="flex-1 space-y-2.5 w-full">
           {devices.map((dev) => {
             const Icon = iconMap[dev.name] || Smartphone;
@@ -92,7 +106,6 @@ export function DeviceChart() {
                     <span>{dev.name}</span>
                   </div>
                 </div>
-
                 <div className="text-right">
                   <span className="text-xs font-bold text-[#1A2621]">{dev.percentage}%</span>
                   <span className="text-[11px] text-[#8E9F97] block">
@@ -107,7 +120,7 @@ export function DeviceChart() {
 
       <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-[11px] text-[#61726A]">
         <span>Total device samples</span>
-        <span className="font-semibold text-[#1A2621]">24,891 clicks</span>
+        <span className="font-semibold text-[#1A2621]">{totalClicks.toLocaleString()} clicks</span>
       </div>
     </div>
   );

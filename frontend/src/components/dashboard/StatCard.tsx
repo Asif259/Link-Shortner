@@ -3,15 +3,14 @@
 import React from 'react';
 import { ArrowUpRight, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { StatMetric } from '@/lib/mock-dashboard-data';
+import type { DashboardStat } from '@/lib/hooks/useDashboardData';
 
 interface StatCardProps {
-  stat: StatMetric;
+  stat: DashboardStat;
   index: number;
 }
 
 export function StatCard({ stat }: StatCardProps) {
-  // Generate mini SVG sparkline path
   const min = Math.min(...stat.sparkline);
   const max = Math.max(...stat.sparkline);
   const range = max - min || 1;
@@ -42,7 +41,6 @@ export function StatCard({ stat }: StatCardProps) {
           {stat.value}
         </span>
 
-        {/* Mini SVG Sparkline */}
         <div className="hidden sm:block">
           <svg width={width} height={height} className="overflow-visible">
             <polyline
