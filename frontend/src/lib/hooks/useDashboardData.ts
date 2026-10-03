@@ -71,12 +71,12 @@ export interface DashboardData {
 }
 
 // ─── Palette for grouped charts (device / browser / country) ─────────────────
-const PALETTE = ['#236B56', '#2F856D', '#3BA385', '#55BFA0', '#7DD4BE', '#A8E8D6', '#C8F0E6'];
+export const PALETTE = ['#236B56', '#2F856D', '#3BA385', '#55BFA0', '#7DD4BE', '#A8E8D6', '#C8F0E6'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Merge multiple grouped arrays summing clicks by name. */
-function mergeGrouped(arrays: GroupedResponseItem[][]): GroupedResponseItem[] {
+export function mergeGrouped(arrays: GroupedResponseItem[][]): GroupedResponseItem[] {
   const totals = new Map<string, number>();
   for (const arr of arrays) {
     for (const { name, clicks } of arr) {
@@ -89,7 +89,7 @@ function mergeGrouped(arrays: GroupedResponseItem[][]): GroupedResponseItem[] {
 }
 
 /** Merge multiple timeline arrays summing clicks by ISO date. */
-function mergeTimeline(arrays: TimelineResponseItem[][]): ChartPoint[] {
+export function mergeTimeline(arrays: TimelineResponseItem[][]): ChartPoint[] {
   const totals = new Map<string, number>();
   for (const arr of arrays) {
     for (const { date, clicks } of arr) {
@@ -102,7 +102,7 @@ function mergeTimeline(arrays: TimelineResponseItem[][]): ChartPoint[] {
 }
 
 /** Format ISO date (YYYY-MM-DD) to short label (e.g. "Sep 3"). */
-function formatChartDate(iso: string): string {
+export function formatChartDate(iso: string): string {
   try {
     const d = new Date(iso + 'T00:00:00');
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -112,7 +112,7 @@ function formatChartDate(iso: string): string {
 }
 
 /** Convert flat grouped result into ShareItems with % and palette colours. */
-function toShareItems(items: GroupedResponseItem[], top = 6): ShareItem[] {
+export function toShareItems(items: GroupedResponseItem[], top = 6): ShareItem[] {
   const limited = items.slice(0, top);
   const total = limited.reduce((s, i) => s + i.clicks, 0) || 1;
   return limited.map((item, idx) => ({
@@ -124,7 +124,7 @@ function toShareItems(items: GroupedResponseItem[], top = 6): ShareItem[] {
 }
 
 /** Convert to DeviceItem with colour. Includes `clicks` for chart tooltip. */
-function toDeviceItems(items: GroupedResponseItem[]): DeviceItem[] {
+export function toDeviceItems(items: GroupedResponseItem[]): DeviceItem[] {
   const total = items.reduce((s, i) => s + i.clicks, 0) || 1;
   return items.slice(0, 3).map((item, idx) => ({
     name: item.name,

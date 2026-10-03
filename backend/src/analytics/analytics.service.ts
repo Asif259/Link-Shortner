@@ -23,6 +23,16 @@ export interface GroupedAnalyticsItem {
   clicks: number;
 }
 
+export interface RecentClickItem {
+  id: string;
+  linkShortCode: string;
+  device: string | null;
+  browser: string | null;
+  country: string | null;
+  referrer: string | null;
+  timestamp: string;
+}
+
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
 /** Minimal request metadata extracted from HTTP headers without external libs. */
@@ -141,8 +151,6 @@ export class AnalyticsService {
     }
   }
 
-  // ─── Ownership guard ─────────────────────────────────────────────────────────
-
   async validateLinkOwnership(linkId: string, userId: string): Promise<Link> {
     const link = await this.linkRepository.findOne({ where: { id: linkId } });
     if (!link) throw new NotFoundException('Link not found');
@@ -152,7 +160,45 @@ export class AnalyticsService {
     return link;
   }
 
-  // ─── Analytics queries ───────────────────────────────────────────────────────
+  /**
+   * Return the most recent clicks across ALL of the user's links.
+   *
+   * Scoped to the authenticated user via a JOIN on links.user_id — no
+   * click from another user's link can appear in the result set.
+   */
+  async getRecentClicks(userId: string, limit = 20): Promise<RecentClickItem[]> {
+    const rows = await this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .addSelect(['link.short_code'])
+      .where('link.user_id = :userId', { userId })
+      .orderBy('click.timestamp', 'DESC')
+      .limit(limit)
+      .getRawMany<{
+        click_id: string;
+        click_timestamp: Date;
+        click_device: string | null;
+        click_browser: string | null;
+        click_country: string | null;
+        click_referrer: string | null;
+        link_short_code: string;
+      }>();
+
+    return rows.map((r) => ({
+      id: r.click_id,
+      linkShortCode: r.link_short_code ?? '',
+      device: r.click_device,
+      browser: r.click_browser,
+      country: r.click_country,
+      referrer: r.click_referrer,
+      timestamp: (r.click_timestamp instanceof Date
+        ? r.click_timestamp
+        : new Date(r.click_timestamp)
+      ).toISOString(),
+    }));
+  }
+
+
 
   async getSummary(linkId: string, userId: string): Promise<AnalyticsSummary> {
     await this.validateLinkOwnership(linkId, userId);

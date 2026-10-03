@@ -94,10 +94,9 @@ export default function LinksPage() {
     setLinks((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
   };
 
-  const filteredLinks =
-    statusFilter === 'all'
-      ? links
-      : links.filter((l) => (l.status || 'active') === statusFilter);
+  // Status filtering is now done server-side (GET /links?status=active|disabled).
+  // The API returns only the matching links, so no client-side re-filter needed.
+  const filteredLinks = links;
 
   return (
     <div className="w-full max-w-[1520px] h-[100vh] min-h-[720px] bg-white flex overflow-hidden relative">
@@ -236,8 +235,8 @@ export default function LinksPage() {
                         link={link}
                         baseUrl={BASE_URL}
                         onCopy={handleCopy}
-                        onViewAnalytics={() => {
-                          router.push('/dashboard');
+                        onViewAnalytics={(l) => {
+                          router.push(`/dashboard/links/${l.id}`);
                         }}
                         onEdit={(l) => setEditLink(l)}
                         onDisable={handleDisable}

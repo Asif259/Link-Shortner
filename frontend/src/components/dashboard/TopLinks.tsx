@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Copy, Check } from 'lucide-react';
+import Link from 'next/link';
+import { Copy, Check, BarChart2 } from 'lucide-react';
 import type { TopLinkItem } from '@/lib/hooks/useDashboardData';
 import { useToast } from '@/components/ui/toast';
 
@@ -55,16 +56,20 @@ export function TopLinks({ topLinks }: TopLinksProps) {
                       <span className="w-5 h-5 rounded-full bg-[#F4F5F3] text-stone-600 font-bold text-[11px] flex items-center justify-center shrink-0">
                         {link.rank}
                       </span>
-                      <span className="font-bold text-[#1A2621] group-hover:text-[#236B56] transition-colors">
+                      <Link
+                        href={`/dashboard/links/${link.id}`}
+                        className="font-bold text-[#1A2621] hover:text-[#236B56] hover:underline transition-colors"
+                        title="View analytics for this link"
+                      >
                         {link.shortCode}
-                      </span>
+                      </Link>
                       <span className="text-[#8E9F97] hidden sm:inline truncate max-w-[140px]">
                         &rarr; {link.destination}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-[#1A2621]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#1A2621] mr-1">
                         {link.clicks.toLocaleString()}{' '}
                         <span className="font-normal text-[#8E9F97]">clicks</span>
                       </span>
@@ -81,6 +86,14 @@ export function TopLinks({ topLinks }: TopLinksProps) {
                           <Copy className="w-3.5 h-3.5" />
                         )}
                       </button>
+                      <Link
+                        href={`/dashboard/links/${link.id}`}
+                        className="p-1 rounded-md text-stone-400 hover:text-[#236B56] hover:bg-[#EBF5F1] transition-colors flex items-center justify-center"
+                        title="View link analytics"
+                        aria-label={`Analytics for ${link.shortCode}`}
+                      >
+                        <BarChart2 className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
                   </div>
 

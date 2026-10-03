@@ -100,9 +100,14 @@ export class LinksService {
       );
     }
 
-    // Status is stored as a virtual field (no DB column yet),
-    // so we filter post-query. For now forward the column if it exists.
-    // We handle sort:
+    // Filter by is_active when a status is specified.
+    // The is_active column exists since migration 1790800000000.
+    if (status === 'active') {
+      qb.andWhere('link.is_active = true');
+    } else if (status === 'disabled') {
+      qb.andWhere('link.is_active = false');
+    }
+
     switch (sort) {
       case 'oldest':
         qb.orderBy('link.created_at', 'ASC');

@@ -36,6 +36,9 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 
 interface ClicksChartProps {
   allData: ChartPoint[];
+  title?: string;
+  subtitle?: string;
+  note?: string;
 }
 
 /** Returns the last N days of data from a full timeline. */
@@ -43,7 +46,12 @@ function filterDays(data: ChartPoint[], days: number): ChartPoint[] {
   return data.slice(-days);
 }
 
-export function ClicksChart({ allData }: ClicksChartProps) {
+export function ClicksChart({
+  allData,
+  title = 'Clicks Over Time',
+  subtitle = 'Daily click volume across all your short links',
+  note = 'Aggregated across all links',
+}: ClicksChartProps) {
   const [timeframe, setTimeframe] = useState<'7 Days' | '30 Days' | '3 Months'>('30 Days');
 
   const dataMap = {
@@ -59,10 +67,8 @@ export function ClicksChart({ allData }: ClicksChartProps) {
     <div className="bg-white rounded-2xl p-6 border border-stone-200/60 shadow-2xs flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h3 className="text-base font-semibold text-[#1A2621]">Clicks Over Time</h3>
-          <p className="text-xs text-[#61726A] mt-0.5">
-            Daily click volume across all your short links
-          </p>
+          <h3 className="text-base font-semibold text-[#1A2621]">{title}</h3>
+          <p className="text-xs text-[#61726A] mt-0.5">{subtitle}</p>
         </div>
 
         <div className="flex items-center bg-[#F4F5F3] p-1 rounded-full border border-stone-200/60 self-start sm:self-auto">
@@ -132,7 +138,7 @@ export function ClicksChart({ allData }: ClicksChartProps) {
           <span className="w-2.5 h-2.5 rounded-full bg-[#236B56]" />
           <span className="font-medium text-[#1A2621]">Total Clicks</span>
         </div>
-        <span className="text-stone-400">Aggregated across all links</span>
+        <span className="text-stone-400">{note}</span>
       </div>
     </div>
   );

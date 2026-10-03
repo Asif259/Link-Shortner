@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { Header } from '@/components/dashboard/Header';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -17,6 +18,7 @@ import { useDashboardData } from '@/lib/hooks/useDashboardData';
 import { Menu, X, AlertCircle } from 'lucide-react';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [currentTab, setCurrentTab] = useState('Analytics');
   const [selectedRange, setSelectedRange] = useState('Last 30 days');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -201,7 +203,7 @@ export default function DashboardPage() {
                 links={data?.recentLinks ?? []}
                 totalLinks={data?.totalLinks ?? 0}
                 onSelectLinkForAnalytics={(linkId) => {
-                  console.log('Selected link for drill-down analytics:', linkId);
+                  router.push(`/dashboard/links/${linkId}`);
                 }}
               />
             )}
