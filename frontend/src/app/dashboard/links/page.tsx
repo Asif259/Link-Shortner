@@ -8,6 +8,7 @@ import { LinkFilters, SortOption } from '@/components/dashboard/links/LinkFilter
 import { LinksTableRow } from '@/components/dashboard/links/LinksTableRow';
 import { CreateLinkDialog } from '@/components/dashboard/CreateLinkDialog';
 import { EditLinkDialog } from '@/components/dashboard/EditLinkDialog';
+import { QRCodeDialog } from '@/components/dashboard/links/QRCodeDialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { useToast } from '@/components/ui/toast';
@@ -36,6 +37,7 @@ export default function LinksPage() {
   const [page, setPage] = useState(1);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editLink, setEditLink] = useState<LinkItem | null>(null);
+  const [qrLink, setQrLink] = useState<LinkItem | null>(null);
   const [linkToDelete, setLinkToDelete] = useState<LinkItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -272,6 +274,7 @@ export default function LinksPage() {
                           onViewAnalytics={(l) => {
                             router.push(`/dashboard/links/${l.id}`);
                           }}
+                          onQRCode={(l) => setQrLink(l)}
                           onEdit={(l) => setEditLink(l)}
                           onDisable={handleDisable}
                           onDelete={(l) => setLinkToDelete(l)}
@@ -371,6 +374,14 @@ export default function LinksPage() {
         isOpen={editLink !== null}
         onClose={() => setEditLink(null)}
         onLinkUpdated={handleLinkUpdated}
+      />
+
+      {/* QR Code Dialog */}
+      <QRCodeDialog
+        link={qrLink}
+        isOpen={qrLink !== null}
+        onClose={() => setQrLink(null)}
+        baseUrl={baseUrl}
       />
 
       {/* Delete Confirmation Modal */}

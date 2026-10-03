@@ -14,10 +14,12 @@ import {
   PlusCircle,
   CheckCircle2,
   HelpCircle,
+  QrCode,
 } from 'lucide-react';
 import { createLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
 import { getShortBaseUrl } from '@/lib/utils/url';
+import { QRCodeDialog } from '@/components/dashboard/links/QRCodeDialog';
 
 interface CreateLinkDialogProps {
   isOpen: boolean;
@@ -38,6 +40,7 @@ export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkD
   const [error, setError] = useState<string | null>(null);
   const [createdLink, setCreatedLink] = useState<LinkItem | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   const { toast } = useToast();
 
@@ -200,6 +203,17 @@ export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkD
                 type="button"
                 variant="outline"
                 size="md"
+                onClick={() => setShowQr(true)}
+                className="text-xs gap-1.5"
+                title="View & download QR code"
+              >
+                <QrCode className="w-3.5 h-3.5 text-[#236B56]" />
+                <span>QR Code</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
                 onClick={handleCreateAnother}
                 className="text-xs gap-1.5"
               >
@@ -309,6 +323,14 @@ export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkD
           </div>
         </form>
       )}
+
+      {/* QR Code Dialog */}
+      <QRCodeDialog
+        link={createdLink}
+        isOpen={showQr}
+        onClose={() => setShowQr(false)}
+        baseUrl={baseUrl}
+      />
     </Dialog>
   );
 }

@@ -19,6 +19,7 @@ import {
   Calendar,
   Sparkles,
   Link as LinkIcon,
+  QrCode,
 } from 'lucide-react';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -28,6 +29,7 @@ import { BrowserStats } from '@/components/dashboard/BrowserStats';
 import { CountryStats } from '@/components/dashboard/CountryStats';
 import { ReferrerStats } from '@/components/dashboard/ReferrerStats';
 import { EditLinkDialog } from '@/components/dashboard/EditLinkDialog';
+import { QRCodeDialog } from '@/components/dashboard/links/QRCodeDialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { getLink, deleteLink, disableLink, enableLink } from '@/lib/api/links';
@@ -83,6 +85,7 @@ export default function LinkAnalyticsPage() {
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
@@ -435,6 +438,17 @@ export default function LinkAnalyticsPage() {
                       <span>{copied ? 'Copied' : 'Copy'}</span>
                     </button>
 
+                    {/* QR Code Button Pill */}
+                    <button
+                      type="button"
+                      onClick={() => setIsQrOpen(true)}
+                      className="px-3.5 py-2 rounded-full border border-stone-200 text-xs font-semibold text-[#1A2621] hover:bg-[#F4F5F3] transition-colors flex items-center gap-1.5 cursor-pointer"
+                      title="View & download QR code"
+                    >
+                      <QrCode className="w-3.5 h-3.5 text-[#236B56]" />
+                      <span>QR Code</span>
+                    </button>
+
                     {/* Enable/Disable Toggle */}
                     <button
                       type="button"
@@ -522,6 +536,14 @@ export default function LinkAnalyticsPage() {
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
         onLinkUpdated={handleLinkUpdated}
+      />
+
+      {/* QR Code Dialog */}
+      <QRCodeDialog
+        link={link}
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        baseUrl={baseUrl}
       />
 
       {/* Delete Confirmation */}

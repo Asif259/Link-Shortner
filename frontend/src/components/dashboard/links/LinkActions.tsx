@@ -10,6 +10,7 @@ import {
   PowerOff,
   Power,
   Trash2,
+  QrCode,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Link as LinkItem } from '@/lib/api/links';
@@ -18,6 +19,7 @@ interface LinkActionsProps {
   link: LinkItem;
   onViewAnalytics: (link: LinkItem) => void;
   onCopy: (link: LinkItem) => void;
+  onQRCode?: (link: LinkItem) => void;
   onEdit: (link: LinkItem) => void;
   onDisable: (link: LinkItem) => void;
   onDelete: (link: LinkItem) => void;
@@ -27,6 +29,7 @@ export function LinkActions({
   link,
   onViewAnalytics,
   onCopy,
+  onQRCode,
   onEdit,
   onDisable,
   onDelete,
@@ -167,6 +170,19 @@ export function LinkActions({
             >
               <Copy className="w-4 h-4 text-stone-400" />
               <span>Copy Link</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onQRCode?.(link);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-stone-700 hover:text-[#236B56] hover:bg-[#EBF5F1] transition-colors text-left cursor-pointer"
+              role="menuitem"
+            >
+              <QrCode className="w-4 h-4 text-[#236B56]" />
+              <span>QR Code</span>
             </button>
 
             <button

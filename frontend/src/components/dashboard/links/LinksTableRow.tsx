@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Copy, Check, ExternalLink, BarChart2 } from 'lucide-react';
+import { Copy, Check, ExternalLink, BarChart2, QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getDisplayHost } from '@/lib/utils/url';
 import type { Link as LinkItem } from '@/lib/api/links';
@@ -12,6 +12,7 @@ interface LinksTableRowProps {
   baseUrl: string;
   onCopy: (link: LinkItem) => void;
   onViewAnalytics: (link: LinkItem) => void;
+  onQRCode?: (link: LinkItem) => void;
   onEdit: (link: LinkItem) => void;
   onDisable: (link: LinkItem) => void;
   onDelete: (link: LinkItem) => void;
@@ -22,6 +23,7 @@ export function LinksTableRow({
   baseUrl,
   onCopy,
   onViewAnalytics,
+  onQRCode,
   onEdit,
   onDisable,
   onDelete,
@@ -97,6 +99,19 @@ export function LinksTableRow({
             >
               <BarChart2 className="w-4 h-4" />
             </button>
+
+            {/* Quick QR Code Button */}
+            {onQRCode && (
+              <button
+                type="button"
+                onClick={() => onQRCode(link)}
+                className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-stone-400 hover:text-[#236B56] hover:bg-[#EBF5F1] transition-colors cursor-pointer"
+                title="View & download QR code"
+                aria-label={`QR code for ${link.shortCode}`}
+              >
+                <QrCode className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </td>
@@ -156,6 +171,7 @@ export function LinksTableRow({
           link={link}
           onViewAnalytics={onViewAnalytics}
           onCopy={onCopy}
+          onQRCode={onQRCode}
           onEdit={onEdit}
           onDisable={onDisable}
           onDelete={onDelete}
