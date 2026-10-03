@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { User } from '../users/entities/user.entity.js';
@@ -102,5 +103,21 @@ export class AnalyticsController {
   ): Promise<RecentClickItem[]> {
     const limit = Math.min(parseInt(limitStr ?? '20', 10) || 20, 50);
     return this.analyticsService.getRecentClicks(user.id, limit);
+  }
+
+  /**
+   * Export all link clicks for the authenticated user as a downloadable CSV.
+   * Respects date range query parameters (?range=30d, ?startDate=..., ?endDate=...).
+   */
+  @Get('analytics/export')
+  async exportCsv(
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Query() query: DateRangeQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<string> {
+    const { filename, csv } = await this.analyticsService.exportCsv(user.id, query);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return csv;
   }
 }

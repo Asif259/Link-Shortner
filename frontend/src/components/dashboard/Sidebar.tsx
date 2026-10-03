@@ -40,7 +40,7 @@ export function Sidebar({ currentTab, onTabChange, className }: SidebarProps) {
     { name: 'Analytics', href: '/dashboard', icon: BarChart3 },
     { name: 'Groups', href: '#', icon: Folder },
     { name: 'QR Codes', href: '#', icon: QrCode },
-    { name: 'Settings', href: '#', icon: Settings },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
 
   return (

@@ -82,6 +82,42 @@ describe('AnalyticsService', () => {
     });
   });
 
+  describe('exportCsv', () => {
+    it('should query clicks scoped to user and return formatted RFC 4180 CSV', async () => {
+      const mockRows = [
+        {
+          shortCode: 'react-docs',
+          originalUrl: 'https://react.dev',
+          timestamp: new Date('2026-10-01T12:00:00Z'),
+          country: 'US',
+          device: 'Desktop',
+          browser: 'Chrome',
+          referrer: 'https://google.com',
+        },
+      ];
+
+      const qbMock = {
+        innerJoin: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        getRawMany: vi.fn().mockResolvedValue(mockRows),
+      };
+      clickRepo.createQueryBuilder.mockReturnValue(qbMock);
+
+      const res = await service.exportCsv('user-1', { range: '7d' });
+
+      expect(res.filename).toContain('analytics-export-7d-');
+      expect(res.filename).toMatch(/\.csv$/);
+      expect(res.csv).toContain('"shortCode","originalUrl","timestamp","country","device","browser","referrer"');
+      expect(res.csv).toContain('"react-docs","https://react.dev"');
+      expect(res.csv).toContain('"US","Desktop","Chrome","https://google.com"');
+    });
+  });
+
   describe('resolveDateRange', () => {
     it('should default to 30d with UTC when no parameters provided', () => {
       const resolved = resolveDateRange({});

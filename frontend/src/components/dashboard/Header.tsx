@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Bell, Plus } from 'lucide-react';
+import { Search, Bell, Plus, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { DateRangeSelector } from './DateRangeSelector';
+import { downloadAnalyticsCsv } from '@/lib/api/analytics';
 import type { DateRangeFilter } from '@/lib/api/analytics';
+import { useToast } from '@/components/ui/toast';
 
 interface HeaderProps {
   onOpenCreateDialog: () => void;
@@ -23,6 +25,8 @@ export function Header({
   selectedRange = 'Last 30 days',
   onRangeChange,
 }: HeaderProps) {
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
   const user = useAuthStore((s) => s.user);
   const initials = user?.name
     ? user.name
@@ -36,6 +40,18 @@ export function Header({
   const displayName = user?.name?.split(' ')[0] ?? (user?.email?.split('@')[0] ?? 'User');
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await downloadAnalyticsCsv(dateFilter);
+      toast('Analytics CSV exported successfully', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to export CSV', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <header className="flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 md:px-8 border-b border-stone-200/50 bg-[#F4F5F3]">
@@ -65,6 +81,22 @@ export function Header({
             }}
           />
         )}
+
+        {/* Export CSV Button */}
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          disabled={isExporting}
+          className="flex items-center gap-1.5 h-10 px-3.5 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-[#1A2621] hover:text-[#236B56] hover:bg-stone-50 shadow-2xs transition-colors disabled:opacity-50"
+          title="Export analytics as CSV"
+        >
+          {isExporting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#236B56]" />
+          ) : (
+            <Download className="w-3.5 h-3.5 text-[#236B56]" />
+          )}
+          <span>Export CSV</span>
+        </button>
 
         {/* Create Short Link CTA */}
         <Button

@@ -635,6 +635,98 @@ export class AnalyticsService {
       },
     };
   }
+
+  /**
+   * Export analytics clicks as CSV for the authenticated user within the specified date range.
+   *
+   * Strictly scopes all clicks to links owned by the user (link.user_id = :userId).
+   * Generates RFC 4180 compliant CSV. Limits to 50,000 rows as a memory safety guard.
+   */
+  async exportCsv(
+    userId: string,
+    query?: DateRangeQueryDto,
+    linkId?: string,
+  ): Promise<{ filename: string; csv: string }> {
+    if (linkId) {
+      await this.validateLinkOwnership(linkId, userId);
+    }
+
+    const { range, startDateTime, endDateTime } = resolveDateRange(query);
+
+    const qb = this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .select('link.short_code', 'shortCode')
+      .addSelect('link.original_url', 'originalUrl')
+      .addSelect('click.timestamp', 'timestamp')
+      .addSelect("COALESCE(click.country, 'Unknown')", 'country')
+      .addSelect("COALESCE(click.device, 'Unknown')", 'device')
+      .addSelect("COALESCE(click.browser, 'Unknown')", 'browser')
+      .addSelect("COALESCE(click.referrer, 'Direct / None')", 'referrer')
+      .where('link.user_id = :userId', { userId });
+
+    if (linkId) {
+      qb.andWhere('link.id = :linkId', { linkId });
+    }
+    if (startDateTime) {
+      qb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      qb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+
+    qb.orderBy('click.timestamp', 'DESC').limit(50000);
+
+    const rows = await qb.getRawMany<{
+      shortCode: string;
+      originalUrl: string;
+      timestamp: Date | string;
+      country: string;
+      device: string;
+      browser: string;
+      referrer: string;
+    }>();
+
+    const headers = [
+      'shortCode',
+      'originalUrl',
+      'timestamp',
+      'country',
+      'device',
+      'browser',
+      'referrer',
+    ];
+
+    const escapeCsv = (val: unknown): string => {
+      if (val === null || val === undefined) return '""';
+      const str = val instanceof Date ? val.toISOString() : String(val);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const csvLines = [
+      headers.map((h) => `"${h}"`).join(','),
+      ...rows.map((r) =>
+        [
+          escapeCsv(r.shortCode),
+          escapeCsv(r.originalUrl),
+          escapeCsv(r.timestamp),
+          escapeCsv(r.country),
+          escapeCsv(r.device),
+          escapeCsv(r.browser),
+          escapeCsv(r.referrer),
+        ].join(','),
+      ),
+    ];
+
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+    const rangeTag = range !== 'all' ? `-${range}` : '';
+    const filename = `analytics-export${rangeTag}-${dateSuffix}.csv`;
+
+    return {
+      filename,
+      csv: csvLines.join('\r\n'),
+    };
+  }
 }
 
 /**

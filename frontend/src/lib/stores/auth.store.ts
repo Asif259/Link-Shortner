@@ -28,6 +28,9 @@ export interface AuthState {
 
   /** Clear auth state and token. */
   logout: () => void;
+
+  /** Update local user info (e.g. after display name change). */
+  updateUser: (partial: Partial<User>) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -83,6 +86,12 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         });
+      },
+
+      updateUser: (partial) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...partial } : null,
+        }));
       },
     }),
     {

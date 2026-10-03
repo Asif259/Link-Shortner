@@ -147,3 +147,56 @@ export async function getAnalyticsOverview(
   const qs = buildAnalyticsQueryParams(filter);
   return apiClient<AnalyticsOverviewResponse>(`/analytics/overview${qs}`);
 }
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+export async function downloadAnalyticsCsv(filter?: DateRangeFilter, linkId?: string): Promise<void> {
+  const qs = buildAnalyticsQueryParams(filter);
+  const endpoint = linkId ? `/links/${linkId}/analytics/export${qs}` : `/analytics/export${qs}`;
+
+  let token: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('linkly-auth');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        token = parsed?.state?.accessToken ?? null;
+      }
+    } catch {
+      // ignore storage access error
+    }
+  }
+
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    let errMsg = 'Failed to download analytics CSV';
+    try {
+      const errJson = await res.json();
+      if (errJson?.message) errMsg = Array.isArray(errJson.message) ? errJson.message.join(', ') : errJson.message;
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(errMsg);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('content-disposition');
+  let filename = `linkly-analytics-${filter?.range ?? 'all'}-${new Date().toISOString().slice(0, 10)}.csv`;
+  if (disposition && disposition.includes('filename=')) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match?.[1]) filename = match[1];
+  }
+
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(blobUrl);
+  document.body.removeChild(a);
+}
+
