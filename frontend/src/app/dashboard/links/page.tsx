@@ -8,14 +8,17 @@ import { LinkFilters, SortOption } from '@/components/dashboard/links/LinkFilter
 import { LinksTableRow } from '@/components/dashboard/links/LinksTableRow';
 import { CreateLinkDialog } from '@/components/dashboard/CreateLinkDialog';
 import { EditLinkDialog } from '@/components/dashboard/EditLinkDialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { getLinks, deleteLink, updateLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
-import { Loader2, Menu, X, LinkIcon } from 'lucide-react';
+import { Loader2, Menu, X, LinkIcon, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SHORT_URL || 'http://localhost:3000';
 
 export default function LinksPage() {
+  const router = useRouter();
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -23,8 +26,9 @@ export default function LinksPage() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editLink, setEditLink] = useState<LinkItem | null>(null);
+  const [linkToDelete, setLinkToDelete] = useState<LinkItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -47,27 +51,24 @@ export default function LinksPage() {
   }, [fetchLinks, search]);
 
   const handleCopy = (link: LinkItem) => {
-    const url = `${BASE_URL}/${link.shortCode}`;
+    const url = `${BASE_URL}/${link.shortCode.replace(/^\//, '')}`;
     navigator.clipboard.writeText(url).then(() => {
       toast('Copied to clipboard!', 'success');
     });
   };
 
-  const handleDelete = async (link: LinkItem) => {
-    if (deleteConfirm !== link.id) {
-      setDeleteConfirm(link.id);
-      setTimeout(() => setDeleteConfirm(null), 3000);
-      toast('Click delete again to confirm', 'error');
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!linkToDelete) return;
     try {
-      await deleteLink(link.id);
-      setLinks((prev) => prev.filter((l) => l.id !== link.id));
-      toast('Link deleted', 'success');
+      setIsDeleting(true);
+      await deleteLink(linkToDelete.id);
+      setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
+      toast(`Link /${linkToDelete.shortCode} deleted`, 'success');
+      setLinkToDelete(null);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Delete failed', 'error');
     } finally {
-      setDeleteConfirm(null);
+      setIsDeleting(false);
     }
   };
 
@@ -76,7 +77,7 @@ export default function LinksPage() {
     try {
       const updated = await updateLink(link.id, { status: newStatus });
       setLinks((prev) => prev.map((l) => (l.id === link.id ? updated : l)));
-      toast(`Link ${newStatus === 'disabled' ? 'disabled' : 'enabled'}`, 'success');
+      toast(`Link is now ${newStatus}`, 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Update failed', 'error');
     }
@@ -90,7 +91,6 @@ export default function LinksPage() {
     setLinks((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
   };
 
-  // Client-side status filter (status isn't persisted to DB yet, so filter locally)
   const filteredLinks =
     statusFilter === 'all'
       ? links
@@ -116,23 +116,23 @@ export default function LinksPage() {
           <button
             onClick={() => setMobileMenuOpen(false)}
             className="p-3 text-white self-start ml-2 mt-4 z-20"
-            aria-label="Close menu"
+            aria-label="Close navigation menu"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col bg-[#F4F5F3] overflow-hidden">
-        {/* Mobile Top Bar */}
+        {/* Mobile Top Header */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-[#236B56] text-white">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="p-1.5 rounded-lg hover:bg-white/10"
-              aria-label="Open navigation menu"
+              aria-label="Open menu"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -141,9 +141,9 @@ export default function LinksPage() {
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="px-3 py-1 bg-white text-[#236B56] rounded-full text-xs font-semibold shadow-xs"
+            className="px-3.5 py-1.5 bg-white text-[#236B56] rounded-full text-xs font-semibold shadow-xs"
           >
-            + Create
+            + Create Link
           </button>
         </div>
 
@@ -154,7 +154,7 @@ export default function LinksPage() {
             totalCount={filteredLinks.length}
           />
 
-          {/* Search + Filters */}
+          {/* Search + Filters (Grouped per Miller's Law) */}
           <div className="flex flex-wrap items-center gap-3 mb-5">
             <LinkSearch value={search} onChange={setSearch} />
             <LinkFilters
@@ -165,25 +165,44 @@ export default function LinksPage() {
             />
           </div>
 
-          {/* Table Card */}
-          <div className="bg-white rounded-2xl border border-stone-200/70 shadow-sm overflow-hidden">
+          {/* Table Container Card */}
+          <div className="bg-white rounded-2xl border border-stone-200/70 shadow-xs overflow-hidden">
             {isLoading ? (
-              <div className="flex items-center justify-center py-24 text-stone-400">
-                <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                <span className="text-sm font-medium">Loading links…</span>
+              <div className="flex flex-col items-center justify-center py-24 text-stone-400 gap-2">
+                <Loader2 className="w-7 h-7 animate-spin text-[#236B56]" />
+                <span className="text-sm font-medium text-stone-600">Loading your links…</span>
               </div>
             ) : filteredLinks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 gap-3 text-stone-400">
-                <LinkIcon className="w-10 h-10 opacity-30" />
-                <p className="text-sm font-medium">
-                  {search ? 'No links match your search' : 'No links yet — create your first one!'}
-                </p>
+              <div className="flex flex-col items-center justify-center py-24 gap-3.5 text-stone-400">
+                <div className="w-14 h-14 rounded-2xl bg-[#EBF5F1] text-[#236B56] flex items-center justify-center shadow-xs">
+                  <LinkIcon className="w-7 h-7" />
+                </div>
+                <div className="text-center max-w-sm">
+                  <p className="text-sm font-semibold text-[#1A2621]">
+                    {search ? 'No matching links found' : 'No short links yet'}
+                  </p>
+                  <p className="text-xs text-stone-500 mt-1">
+                    {search
+                      ? 'Try adjusting your search terms or filters'
+                      : 'Shorten your first destination URL to start collecting clicks and analytics.'}
+                  </p>
+                </div>
+                {!search && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateOpen(true)}
+                    className="mt-1 px-4 py-2 bg-[#236B56] text-white rounded-full text-xs font-semibold hover:bg-[#1C5745] transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Create Your First Link</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm" aria-label="My Links">
+                <table className="w-full text-sm" aria-label="My Short Links">
                   <thead>
-                    <tr className="border-b border-stone-100 bg-[#F4F5F3]/60">
+                    <tr className="border-b border-stone-100 bg-[#F4F5F3]/70">
                       <th className="py-3 px-4 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide">
                         Short Link
                       </th>
@@ -212,11 +231,11 @@ export default function LinksPage() {
                         baseUrl={BASE_URL}
                         onCopy={handleCopy}
                         onViewAnalytics={() => {
-                          // TODO: navigate to analytics detail for this link
+                          router.push('/dashboard');
                         }}
                         onEdit={(l) => setEditLink(l)}
                         onDisable={handleDisable}
-                        onDelete={handleDelete}
+                        onDelete={(l) => setLinkToDelete(l)}
                       />
                     ))}
                   </tbody>
@@ -227,19 +246,32 @@ export default function LinksPage() {
         </main>
       </div>
 
-      {/* Create Dialog */}
+      {/* Create Link Dialog */}
       <CreateLinkDialog
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onLinkCreated={handleLinkCreated}
       />
 
-      {/* Edit Dialog */}
+      {/* Edit Link Dialog */}
       <EditLinkDialog
         link={editLink}
         isOpen={editLink !== null}
         onClose={() => setEditLink(null)}
         onLinkUpdated={handleLinkUpdated}
+      />
+
+      {/* Delete Confirmation Modal (Error Prevention & Jakob's Law) */}
+      <ConfirmDialog
+        isOpen={linkToDelete !== null}
+        onClose={() => setLinkToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Short Link"
+        description={`Are you sure you want to delete /${linkToDelete?.shortCode}? All click tracking history and redirect analytics will be permanently removed. This cannot be undone.`}
+        confirmLabel="Delete Link"
+        cancelLabel="Keep Link"
+        isDestructive={true}
+        isLoading={isDeleting}
       />
     </div>
   );

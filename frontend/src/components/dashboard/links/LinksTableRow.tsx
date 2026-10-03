@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Check, ExternalLink } from 'lucide-react';
+import { Copy, Check, ExternalLink, BarChart2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Link as LinkItem } from '@/lib/api/links';
 import { LinkActions } from './LinkActions';
@@ -37,7 +37,7 @@ export function LinksTableRow({
 
   const status = link.status || 'active';
 
-  // Format date
+  // Format date cleanly
   const formattedDate = React.useMemo(() => {
     try {
       const d = new Date(link.createdAt);
@@ -53,34 +53,49 @@ export function LinksTableRow({
   }, [link.createdAt]);
 
   return (
-    <tr className="hover:bg-[#F4F5F3]/50 transition-colors group">
-      {/* Short Link */}
-      <td className="py-3.5 px-4 font-semibold text-[#1A2621]">
+    <tr className="hover:bg-[#F4F5F3]/60 transition-colors group">
+      {/* Short Link + Quick Action Buttons */}
+      <td className="py-3 px-4 font-semibold text-[#1A2621]">
         <div className="flex items-center gap-2">
           <span
             onClick={() => onViewAnalytics(link)}
-            className="text-[#236B56] hover:underline cursor-pointer font-bold"
+            className="text-[#236B56] hover:text-[#1C5745] hover:underline cursor-pointer font-bold text-sm tracking-tight"
+            title="View link analytics"
           >
             {fullShortUrl.replace(/^https?:\/\//, '')}
           </span>
-          <button
-            type="button"
-            onClick={handleCopyClick}
-            className="p-1 rounded-md text-stone-400 hover:text-[#236B56] hover:bg-[#EBF5F1] transition-colors cursor-pointer"
-            title="Copy short link"
-            aria-label={`Copy ${link.shortCode}`}
-          >
-            {copied ? (
-              <Check className="w-3.5 h-3.5 text-[#236B56]" />
-            ) : (
-              <Copy className="w-3.5 h-3.5" />
-            )}
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Copy Button (Fitts's Law comfortable touch target) */}
+            <button
+              type="button"
+              onClick={handleCopyClick}
+              className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-stone-400 hover:text-[#236B56] hover:bg-[#EBF5F1] transition-colors cursor-pointer"
+              title="Copy short link"
+              aria-label={`Copy short URL for ${link.shortCode}`}
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-[#236B56]" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* Quick Analytics Button */}
+            <button
+              type="button"
+              onClick={() => onViewAnalytics(link)}
+              className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-stone-400 hover:text-[#236B56] hover:bg-[#EBF5F1] transition-colors cursor-pointer"
+              title="View analytics for this link"
+              aria-label={`View analytics for ${link.shortCode}`}
+            >
+              <BarChart2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </td>
 
-      {/* Destination */}
-      <td className="py-3.5 px-4 text-stone-600 max-w-[240px]">
+      {/* Destination URL */}
+      <td className="py-3 px-4 text-stone-600 max-w-[260px]">
         <div className="flex items-center gap-1.5 truncate" title={link.originalUrl}>
           <a
             href={link.originalUrl}
@@ -89,29 +104,31 @@ export function LinksTableRow({
             className="truncate hover:text-[#1A2621] hover:underline inline-flex items-center gap-1 text-xs"
           >
             <span className="truncate">{link.originalUrl}</span>
-            <ExternalLink className="w-3 h-3 opacity-60 shrink-0" />
+            <ExternalLink className="w-3 h-3 opacity-50 shrink-0" />
           </a>
         </div>
       </td>
 
-      {/* Clicks */}
-      <td className="py-3.5 px-4 text-right font-bold text-[#1A2621]">
-        {(link.clickCount ?? 0).toLocaleString()}
+      {/* Clicks Metric */}
+      <td className="py-3 px-4 text-right font-bold text-[#1A2621]">
+        <span className="inline-block px-2 py-0.5 rounded-md bg-[#F4F5F3] text-xs">
+          {(link.clickCount ?? 0).toLocaleString()}
+        </span>
       </td>
 
-      {/* Created */}
-      <td className="py-3.5 px-4 text-stone-500 text-xs whitespace-nowrap">
+      {/* Created Date */}
+      <td className="py-3 px-4 text-stone-500 text-xs whitespace-nowrap">
         {formattedDate}
       </td>
 
-      {/* Status */}
-      <td className="py-3.5 px-4 text-center">
+      {/* Status Badge */}
+      <td className="py-3 px-4 text-center">
         <span
           className={cn(
             'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize',
-            status === 'active' && 'bg-emerald-50 text-emerald-700',
-            status === 'disabled' && 'bg-amber-50 text-amber-700',
-            status === 'expired' && 'bg-rose-50 text-rose-700'
+            status === 'active' && 'bg-emerald-50 text-emerald-700 border border-emerald-200/50',
+            status === 'disabled' && 'bg-amber-50 text-amber-700 border border-amber-200/50',
+            status === 'expired' && 'bg-rose-50 text-rose-700 border border-rose-200/50'
           )}
         >
           <span
@@ -126,8 +143,8 @@ export function LinksTableRow({
         </span>
       </td>
 
-      {/* Actions */}
-      <td className="py-3.5 px-4 text-right">
+      {/* Actions Dropdown */}
+      <td className="py-3 px-4 text-right">
         <LinkActions
           link={link}
           onViewAnalytics={onViewAnalytics}
