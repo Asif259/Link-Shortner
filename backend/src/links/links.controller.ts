@@ -15,7 +15,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { User } from '../users/entities/user.entity.js';
-import { LinksService, GetLinksParams } from './links.service.js';
+import { LinksService, GetLinksParams, PaginatedLinks } from './links.service.js';
 import { CreateLinkDto } from './dto/create-link.dto.js';
 import { UpdateLinkDto } from './dto/update-link.dto.js';
 
@@ -51,13 +51,17 @@ export class LinksController {
     @Query('sort') sort?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-  ) {
+  ): Promise<PaginatedLinks> {
+    const rawPage = page ? parseInt(page, 10) : 1;
+    const rawLimit = limit ? parseInt(limit, 10) : 20;
+
     const params: GetLinksParams = {
-      search,
+      search: search?.trim() || undefined,
       status,
       sort,
-      page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 50,
+      // Guard against NaN and out-of-range values.
+      page: Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1,
+      limit: Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 20,
     };
     return this.linksService.findAllByUser(user.id, params);
   }

@@ -32,7 +32,19 @@ export interface UpdateLinkInput {
   status?: LinkStatus;
 }
 
-export async function getLinks(params?: GetLinksParams): Promise<Link[]> {
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PaginatedLinksResponse {
+  items: Link[];
+  meta: PaginationMeta;
+}
+
+export async function getLinks(params?: GetLinksParams): Promise<PaginatedLinksResponse> {
   const query = new URLSearchParams();
   if (params?.search) query.append('search', params.search);
   if (params?.status && params.status !== 'all') query.append('status', params.status);
@@ -41,7 +53,7 @@ export async function getLinks(params?: GetLinksParams): Promise<Link[]> {
   if (params?.limit) query.append('limit', params.limit.toString());
 
   const queryString = query.toString() ? `?${query.toString()}` : '';
-  return apiClient<Link[]>(`/links${queryString}`);
+  return apiClient<PaginatedLinksResponse>(`/links${queryString}`);
 }
 
 export async function getLink(id: string): Promise<Link> {

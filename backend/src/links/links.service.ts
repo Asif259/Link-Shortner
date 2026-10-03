@@ -16,6 +16,18 @@ export interface LinkWithClickCount extends Link {
   status: 'active' | 'disabled';
 }
 
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PaginatedLinks {
+  items: LinkWithClickCount[];
+  meta: PaginationMeta;
+}
+
 export interface GetLinksParams {
   search?: string;
   status?: string;
@@ -81,53 +93,77 @@ export class LinksService {
     return this.toResponse(saved, 0);
   }
 
-  async findAllByUser(userId: string, params: GetLinksParams = {}): Promise<LinkWithClickCount[]> {
-    const { search, status, sort = 'newest', page = 1, limit = 50 } = params;
+  async findAllByUser(userId: string, params: GetLinksParams = {}): Promise<PaginatedLinks> {
+    const { search, status, sort = 'newest' } = params;
+    // Clamp values — controller already validates but guard here too.
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+    const offset = (page - 1) * limit;
 
-    const qb = this.linkRepository
-      .createQueryBuilder('link')
-      .leftJoin('link.clicks', 'click')
-      .addSelect('COUNT(click.id)::int', 'clickCount')
-      .where('link.user_id = :userId', { userId })
-      .groupBy('link.id')
-      .take(limit)
-      .skip((page - 1) * limit);
+    // ── Base query builder (shared filters) ──────────────────────────────────
+    const buildBase = () =>
+      this.linkRepository
+        .createQueryBuilder('link')
+        .where('link.user_id = :userId', { userId });
 
-    if (search) {
-      qb.andWhere(
-        '(link.short_code ILIKE :search OR link.original_url ILIKE :search)',
-        { search: `%${search}%` },
-      );
-    }
+    // Apply search + status filters to a given QB.
+    const applyFilters = (qb: ReturnType<typeof buildBase>) => {
+      if (search) {
+        qb.andWhere(
+          '(link.short_code ILIKE :search OR link.original_url ILIKE :search)',
+          { search: `%${search}%` },
+        );
+      }
+      if (status === 'active') qb.andWhere('link.is_active = true');
+      else if (status === 'disabled') qb.andWhere('link.is_active = false');
+      return qb;
+    };
 
-    // Filter by is_active when a status is specified.
-    // The is_active column exists since migration 1790800000000.
-    if (status === 'active') {
-      qb.andWhere('link.is_active = true');
-    } else if (status === 'disabled') {
-      qb.andWhere('link.is_active = false');
-    }
+    // ── Count query (no LIMIT/OFFSET, no JOIN needed for count) ──────────────
+    const totalQb = applyFilters(buildBase());
+    const totalPromise = totalQb.getCount();
+
+    // ── Data query (with click count, sorting, pagination) ───────────────────
+    const dataQb = applyFilters(
+      buildBase()
+        .leftJoin('link.clicks', 'click')
+        .addSelect('COUNT(click.id)::int', 'clickCount')
+        .groupBy('link.id')
+        .take(limit)
+        .skip(offset),
+    );
 
     switch (sort) {
       case 'oldest':
-        qb.orderBy('link.created_at', 'ASC');
+        dataQb.orderBy('link.created_at', 'ASC');
         break;
       case 'most_clicks':
-        qb.orderBy('clickCount', 'DESC');
+        dataQb.orderBy('clickCount', 'DESC');
         break;
       case 'least_clicks':
-        qb.orderBy('clickCount', 'ASC');
+        dataQb.orderBy('clickCount', 'ASC');
         break;
       default: // newest
-        qb.orderBy('link.created_at', 'DESC');
+        dataQb.orderBy('link.created_at', 'DESC');
     }
 
-    const raw = await qb.getRawAndEntities();
+    // Run total count and data fetch in parallel.
+    const [total, raw] = await Promise.all([totalPromise, dataQb.getRawAndEntities()]);
 
-    return raw.entities.map((link, idx) => {
+    const items = raw.entities.map((link, idx) => {
       const count = Number(raw.raw[idx]?.clickCount ?? 0);
       return this.toResponse(link, count);
     });
+
+    return {
+      items,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<LinkWithClickCount> {
