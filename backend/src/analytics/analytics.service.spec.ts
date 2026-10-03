@@ -5,6 +5,7 @@ import { describe, beforeEach, it, expect, vi } from 'vitest';
 import { AnalyticsService } from './analytics.service.js';
 import { Click } from './entities/click.entity.js';
 import { Link } from '../links/entities/link.entity.js';
+import { resolveDateRange } from './dto/date-range.dto.js';
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
@@ -78,6 +79,55 @@ describe('AnalyticsService', () => {
         clicksThisWeek: 74,
         clicksThisMonth: 128,
       });
+    });
+  });
+
+  describe('resolveDateRange', () => {
+    it('should default to 30d with UTC when no parameters provided', () => {
+      const resolved = resolveDateRange({});
+      expect(resolved.range).toBe('30d');
+      expect(resolved.timezone).toBe('UTC');
+      expect(resolved.startDateTime).toBeInstanceOf(Date);
+      expect(resolved.endDateTime).toBeInstanceOf(Date);
+    });
+
+    it('should correctly handle all-time preset', () => {
+      const resolved = resolveDateRange({ range: 'all' });
+      expect(resolved.range).toBe('all');
+      expect(resolved.startDateTime).toBeNull();
+      expect(resolved.endDateTime).toBeNull();
+    });
+
+    it('should validate and parse custom date range', () => {
+      const resolved = resolveDateRange({
+        range: 'custom',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        timezone: 'America/New_York',
+      });
+      expect(resolved.range).toBe('custom');
+      expect(resolved.timezone).toBe('America/New_York');
+      expect(resolved.startDateTime?.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+      expect(resolved.endDateTime?.toISOString()).toBe('2026-09-30T23:59:59.999Z');
+    });
+
+    it('should throw BadRequestException if startDate is after endDate', () => {
+      expect(() =>
+        resolveDateRange({
+          range: 'custom',
+          startDate: '2026-10-05',
+          endDate: '2026-10-01',
+        }),
+      ).toThrow();
+    });
+
+    it('should throw BadRequestException for invalid timezone', () => {
+      expect(() =>
+        resolveDateRange({
+          range: '7d',
+          timezone: 'Not/A_Real_Timezone',
+        }),
+      ).toThrow();
     });
   });
 });

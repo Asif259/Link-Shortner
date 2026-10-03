@@ -30,6 +30,7 @@ import { CountryStats } from '@/components/dashboard/CountryStats';
 import { ReferrerStats } from '@/components/dashboard/ReferrerStats';
 import { EditLinkDialog } from '@/components/dashboard/EditLinkDialog';
 import { QRCodeDialog } from '@/components/dashboard/links/QRCodeDialog';
+import { DateRangeSelector } from '@/components/dashboard/DateRangeSelector';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { getLink, deleteLink, disableLink, enableLink } from '@/lib/api/links';
@@ -46,6 +47,7 @@ import type {
   AnalyticsSummaryResponse,
   TimelineResponseItem,
   GroupedResponseItem,
+  DateRangeFilter,
 } from '@/lib/api/analytics';
 import {
   DashboardStat,
@@ -78,6 +80,7 @@ export default function LinkAnalyticsPage() {
   const [browsers, setBrowsers] = useState<ShareItem[]>([]);
   const [countries, setCountries] = useState<ShareItem[]>([]);
   const [referrers, setReferrers] = useState<ShareItem[]>([]);
+  const [dateFilter, setDateFilter] = useState<DateRangeFilter>({ range: '30d' });
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +103,7 @@ export default function LinkAnalyticsPage() {
       const linkData = await getLink(linkId);
       setLink(linkData);
 
-      // 2. Fetch all analytics in parallel
+      // 2. Fetch all analytics in parallel with date range filter
       const [
         summaryRes,
         timelineRes,
@@ -110,11 +113,11 @@ export default function LinkAnalyticsPage() {
         referrersRes,
       ] = await Promise.allSettled([
         getLinkAnalytics(linkId),
-        getLinkTimeline(linkId),
-        getLinkDevices(linkId),
-        getLinkBrowsers(linkId),
-        getLinkCountries(linkId),
-        getLinkReferrers(linkId),
+        getLinkTimeline(linkId, dateFilter),
+        getLinkDevices(linkId, dateFilter),
+        getLinkBrowsers(linkId, dateFilter),
+        getLinkCountries(linkId, dateFilter),
+        getLinkReferrers(linkId, dateFilter),
       ]);
 
       const summary = summaryRes.status === 'fulfilled' ? summaryRes.value : null;
@@ -189,7 +192,7 @@ export default function LinkAnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [linkId]);
+  }, [linkId, dateFilter]);
 
   useEffect(() => {
     void loadData();
@@ -300,7 +303,7 @@ export default function LinkAnalyticsPage() {
         {/* Scrollable Body */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
           {/* Breadcrumb / Top Bar */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <Link
               href="/dashboard/links"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#236B56] hover:text-[#1C5745] hover:underline transition-colors"
@@ -308,6 +311,7 @@ export default function LinkAnalyticsPage() {
               <ArrowLeft className="w-4 h-4" />
               <span>Back to all links</span>
             </Link>
+            <DateRangeSelector value={dateFilter} onChange={setDateFilter} />
           </div>
 
           {/* Error Banner */}

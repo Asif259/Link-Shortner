@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Click } from './entities/click.entity.js';
 import { Link } from '../links/entities/link.entity.js';
+import { DateRangeQueryDto, DateRangePreset, resolveDateRange } from './dto/date-range.dto.js';
 
 // ─── Response interfaces ──────────────────────────────────────────────────────
 
@@ -62,6 +63,12 @@ export interface OverviewResponse {
   countries: GroupedAnalyticsItem[];
   topLinks: TopLinkItem[];
   recentLinks: RecentLinkItem[];
+  rangeInfo?: {
+    range: DateRangePreset;
+    startDate: string | null;
+    endDate: string | null;
+    timezone: string;
+  };
 }
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
@@ -266,29 +273,58 @@ export class AnalyticsService {
     return { totalClicks, clicksToday, clicksThisWeek, clicksThisMonth };
   }
 
-  async getTimeline(linkId: string, userId: string): Promise<TimelineItem[]> {
+  async getTimeline(
+    linkId: string,
+    userId: string,
+    query?: DateRangeQueryDto,
+  ): Promise<TimelineItem[]> {
     await this.validateLinkOwnership(linkId, userId);
+    const { startDateTime, endDateTime, timezone } = resolveDateRange(query);
 
-    const result = await this.clickRepository
+    const qb = this.clickRepository
       .createQueryBuilder('click')
-      .select("TO_CHAR(click.timestamp, 'YYYY-MM-DD')", 'date')
+      .select(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`, 'date')
       .addSelect('COUNT(*)::int', 'clicks')
       .where('click.link_id = :linkId', { linkId })
-      .groupBy("TO_CHAR(click.timestamp, 'YYYY-MM-DD')")
+      .setParameter('timezone', timezone);
+
+    if (startDateTime) {
+      qb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      qb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+
+    const rows = await qb
+      .groupBy(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`)
       .orderBy('date', 'ASC')
       .getRawMany<{ date: string; clicks: number }>();
 
-    return result.map((row) => ({ date: row.date, clicks: Number(row.clicks) }));
+    return buildContinuousTimeline(rows, startDateTime, endDateTime, timezone);
   }
 
-  async getDevices(linkId: string, userId: string): Promise<GroupedAnalyticsItem[]> {
+  async getDevices(
+    linkId: string,
+    userId: string,
+    query?: DateRangeQueryDto,
+  ): Promise<GroupedAnalyticsItem[]> {
     await this.validateLinkOwnership(linkId, userId);
+    const { startDateTime, endDateTime } = resolveDateRange(query);
 
-    const result = await this.clickRepository
+    const qb = this.clickRepository
       .createQueryBuilder('click')
       .select("COALESCE(click.device, 'Unknown')", 'name')
       .addSelect('COUNT(*)::int', 'clicks')
-      .where('click.link_id = :linkId', { linkId })
+      .where('click.link_id = :linkId', { linkId });
+
+    if (startDateTime) {
+      qb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      qb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+
+    const result = await qb
       .groupBy("COALESCE(click.device, 'Unknown')")
       .orderBy('clicks', 'DESC')
       .getRawMany<{ name: string; clicks: number }>();
@@ -296,14 +332,28 @@ export class AnalyticsService {
     return result.map((row) => ({ name: row.name, clicks: Number(row.clicks) }));
   }
 
-  async getBrowsers(linkId: string, userId: string): Promise<GroupedAnalyticsItem[]> {
+  async getBrowsers(
+    linkId: string,
+    userId: string,
+    query?: DateRangeQueryDto,
+  ): Promise<GroupedAnalyticsItem[]> {
     await this.validateLinkOwnership(linkId, userId);
+    const { startDateTime, endDateTime } = resolveDateRange(query);
 
-    const result = await this.clickRepository
+    const qb = this.clickRepository
       .createQueryBuilder('click')
       .select("COALESCE(click.browser, 'Unknown')", 'name')
       .addSelect('COUNT(*)::int', 'clicks')
-      .where('click.link_id = :linkId', { linkId })
+      .where('click.link_id = :linkId', { linkId });
+
+    if (startDateTime) {
+      qb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      qb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+
+    const result = await qb
       .groupBy("COALESCE(click.browser, 'Unknown')")
       .orderBy('clicks', 'DESC')
       .getRawMany<{ name: string; clicks: number }>();
@@ -311,14 +361,28 @@ export class AnalyticsService {
     return result.map((row) => ({ name: row.name, clicks: Number(row.clicks) }));
   }
 
-  async getReferrers(linkId: string, userId: string): Promise<GroupedAnalyticsItem[]> {
+  async getReferrers(
+    linkId: string,
+    userId: string,
+    query?: DateRangeQueryDto,
+  ): Promise<GroupedAnalyticsItem[]> {
     await this.validateLinkOwnership(linkId, userId);
+    const { startDateTime, endDateTime } = resolveDateRange(query);
 
-    const result = await this.clickRepository
+    const qb = this.clickRepository
       .createQueryBuilder('click')
       .select("COALESCE(click.referrer, 'Direct / None')", 'name')
       .addSelect('COUNT(*)::int', 'clicks')
-      .where('click.link_id = :linkId', { linkId })
+      .where('click.link_id = :linkId', { linkId });
+
+    if (startDateTime) {
+      qb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      qb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+
+    const result = await qb
       .groupBy("COALESCE(click.referrer, 'Direct / None')")
       .orderBy('clicks', 'DESC')
       .getRawMany<{ name: string; clicks: number }>();
@@ -326,14 +390,28 @@ export class AnalyticsService {
     return result.map((row) => ({ name: row.name, clicks: Number(row.clicks) }));
   }
 
-  async getCountries(linkId: string, userId: string): Promise<GroupedAnalyticsItem[]> {
+  async getCountries(
+    linkId: string,
+    userId: string,
+    query?: DateRangeQueryDto,
+  ): Promise<GroupedAnalyticsItem[]> {
     await this.validateLinkOwnership(linkId, userId);
+    const { startDateTime, endDateTime } = resolveDateRange(query);
 
-    const result = await this.clickRepository
+    const qb = this.clickRepository
       .createQueryBuilder('click')
       .select("COALESCE(click.country, 'Unknown')", 'name')
       .addSelect('COUNT(*)::int', 'clicks')
-      .where('click.link_id = :linkId', { linkId })
+      .where('click.link_id = :linkId', { linkId });
+
+    if (startDateTime) {
+      qb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      qb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+
+    const result = await qb
       .groupBy("COALESCE(click.country, 'Unknown')")
       .orderBy('clicks', 'DESC')
       .getRawMany<{ name: string; clicks: number }>();
@@ -347,15 +425,126 @@ export class AnalyticsService {
    * Runs 7 queries in parallel (Promise.all) — each is a single SQL aggregate
    * joined from clicks through links.user_id. No per-link fanout.
    */
-  async getOverview(userId: string): Promise<OverviewResponse> {
+  /**
+   * Aggregate analytics for ALL links owned by a user in a single roundtrip.
+   *
+   * Runs queries in parallel (Promise.all) — each is a single SQL aggregate
+   * joined from clicks through links.user_id, filtered by the requested date range.
+   */
+  async getOverview(userId: string, query?: DateRangeQueryDto): Promise<OverviewResponse> {
+    const { range, startDateTime, endDateTime, timezone } = resolveDateRange(query);
+
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // 1. Total clicks in range
+    const totalClicksQb = this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .where('link.user_id = :userId', { userId });
+    if (startDateTime) {
+      totalClicksQb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      totalClicksQb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+
+    // 2. Timeline in range
+    const timelineQb = this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .select(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`, 'date')
+      .addSelect('COUNT(*)::int', 'clicks')
+      .where('link.user_id = :userId', { userId })
+      .setParameter('timezone', timezone);
+    if (startDateTime) {
+      timelineQb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      timelineQb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+    timelineQb
+      .groupBy(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`)
+      .orderBy('date', 'ASC');
+
+    // 3. Devices in range
+    const devicesQb = this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .select("COALESCE(click.device, 'Unknown')", 'name')
+      .addSelect('COUNT(*)::int', 'clicks')
+      .where('link.user_id = :userId', { userId });
+    if (startDateTime) {
+      devicesQb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      devicesQb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+    devicesQb
+      .groupBy("COALESCE(click.device, 'Unknown')")
+      .orderBy('clicks', 'DESC');
+
+    // 4. Browsers in range
+    const browsersQb = this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .select("COALESCE(click.browser, 'Unknown')", 'name')
+      .addSelect('COUNT(*)::int', 'clicks')
+      .where('link.user_id = :userId', { userId });
+    if (startDateTime) {
+      browsersQb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      browsersQb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+    browsersQb
+      .groupBy("COALESCE(click.browser, 'Unknown')")
+      .orderBy('clicks', 'DESC');
+
+    // 5. Countries in range
+    const countriesQb = this.clickRepository
+      .createQueryBuilder('click')
+      .innerJoin('click.link', 'link')
+      .select("COALESCE(click.country, 'Unknown')", 'name')
+      .addSelect('COUNT(*)::int', 'clicks')
+      .where('link.user_id = :userId', { userId });
+    if (startDateTime) {
+      countriesQb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
+    }
+    if (endDateTime) {
+      countriesQb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
+    }
+    countriesQb
+      .groupBy("COALESCE(click.country, 'Unknown')")
+      .orderBy('clicks', 'DESC');
+
+    // 6. Top links by click count IN SELECTED RANGE
+    let topLinksJoinCondition = '1=1';
+    const topLinksParams: Record<string, any> = {};
+    if (startDateTime) {
+      topLinksJoinCondition += ' AND click.timestamp >= :startDateTime';
+      topLinksParams.startDateTime = startDateTime;
+    }
+    if (endDateTime) {
+      topLinksJoinCondition += ' AND click.timestamp <= :endDateTime';
+      topLinksParams.endDateTime = endDateTime;
+    }
+    const topLinksQb = this.linkRepository
+      .createQueryBuilder('link')
+      .leftJoin('link.clicks', 'click', topLinksJoinCondition, topLinksParams)
+      .select(['link.id', 'link.short_code', 'link.original_url', 'link.is_active'])
+      .addSelect('COUNT(click.id)::int', 'clickCount')
+      .where('link.user_id = :userId', { userId })
+      .groupBy('link.id')
+      .orderBy('clickCount', 'DESC')
+      .addOrderBy('link.created_at', 'DESC')
+      .limit(5);
+
     const [
       totalClicksResult,
       clicksTodayResult,
-      timeline,
+      rawTimeline,
       devices,
       browsers,
       countries,
@@ -363,14 +552,9 @@ export class AnalyticsService {
       recentLinks,
       linksCounts,
     ] = await Promise.all([
-      // 1. Total clicks across all user links
-      this.clickRepository
-        .createQueryBuilder('click')
-        .innerJoin('click.link', 'link')
-        .where('link.user_id = :userId', { userId })
-        .getCount(),
+      totalClicksQb.getCount(),
 
-      // 2. Clicks today
+      // Clicks today (unfiltered by custom range to give current pulse)
       this.clickRepository
         .createQueryBuilder('click')
         .innerJoin('click.link', 'link')
@@ -378,64 +562,13 @@ export class AnalyticsService {
         .andWhere('click.timestamp >= :startOfToday', { startOfToday })
         .getCount(),
 
-      // 3. Combined daily click timeline (last 90 days)
-      this.clickRepository
-        .createQueryBuilder('click')
-        .innerJoin('click.link', 'link')
-        .select("TO_CHAR(click.timestamp, 'YYYY-MM-DD')", 'date')
-        .addSelect('COUNT(*)::int', 'clicks')
-        .where('link.user_id = :userId', { userId })
-        .andWhere("click.timestamp >= NOW() - INTERVAL '90 days'")
-        .groupBy("TO_CHAR(click.timestamp, 'YYYY-MM-DD')")
-        .orderBy('date', 'ASC')
-        .getRawMany<{ date: string; clicks: number }>(),
+      timelineQb.getRawMany<{ date: string; clicks: number }>(),
+      devicesQb.getRawMany<{ name: string; clicks: number }>(),
+      browsersQb.getRawMany<{ name: string; clicks: number }>(),
+      countriesQb.getRawMany<{ name: string; clicks: number }>(),
+      topLinksQb.getRawAndEntities(),
 
-      // 4. Device breakdown
-      this.clickRepository
-        .createQueryBuilder('click')
-        .innerJoin('click.link', 'link')
-        .select("COALESCE(click.device, 'Unknown')", 'name')
-        .addSelect('COUNT(*)::int', 'clicks')
-        .where('link.user_id = :userId', { userId })
-        .groupBy("COALESCE(click.device, 'Unknown')")
-        .orderBy('clicks', 'DESC')
-        .getRawMany<{ name: string; clicks: number }>(),
-
-      // 5. Browser breakdown
-      this.clickRepository
-        .createQueryBuilder('click')
-        .innerJoin('click.link', 'link')
-        .select("COALESCE(click.browser, 'Unknown')", 'name')
-        .addSelect('COUNT(*)::int', 'clicks')
-        .where('link.user_id = :userId', { userId })
-        .groupBy("COALESCE(click.browser, 'Unknown')")
-        .orderBy('clicks', 'DESC')
-        .getRawMany<{ name: string; clicks: number }>(),
-
-      // 6. Country breakdown
-      this.clickRepository
-        .createQueryBuilder('click')
-        .innerJoin('click.link', 'link')
-        .select("COALESCE(click.country, 'Unknown')", 'name')
-        .addSelect('COUNT(*)::int', 'clicks')
-        .where('link.user_id = :userId', { userId })
-        .groupBy("COALESCE(click.country, 'Unknown')")
-        .orderBy('clicks', 'DESC')
-        .getRawMany<{ name: string; clicks: number }>(),
-
-      // 7. Top 5 links by click count
-      this.linkRepository
-        .createQueryBuilder('link')
-        .leftJoin('link.clicks', 'click')
-        .select(['link.id', 'link.short_code', 'link.original_url', 'link.is_active'])
-        .addSelect('COUNT(click.id)::int', 'clickCount')
-        .where('link.user_id = :userId', { userId })
-        .groupBy('link.id')
-        .orderBy('clickCount', 'DESC')
-        .limit(5)
-        .getRawAndEntities(),
-
-      // 8. 5 most recently created links
+      // 5 most recently created links
       this.linkRepository
         .createQueryBuilder('link')
         .leftJoin('link.clicks', 'click')
@@ -447,7 +580,7 @@ export class AnalyticsService {
         .limit(5)
         .getRawAndEntities(),
 
-      // 9. Total & active link counts + links created this month
+      // Total & active link counts + links created this month
       this.linkRepository
         .createQueryBuilder('link')
         .select('COUNT(*)::int', 'total')
@@ -479,7 +612,7 @@ export class AnalyticsService {
       totalLinks: Number(linksCounts?.total ?? 0),
       activeLinks: Number(linksCounts?.active ?? 0),
       linksThisMonth: Number(linksCounts?.thisMonth ?? 0),
-      timeline: timeline.map((r) => ({ date: r.date, clicks: Number(r.clicks) })),
+      timeline: buildContinuousTimeline(rawTimeline, startDateTime, endDateTime, timezone),
       devices: devices.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
       browsers: browsers.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
       countries: countries.map((r) => ({ name: r.name, clicks: Number(r.clicks) })),
@@ -492,6 +625,44 @@ export class AnalyticsService {
         isActive: link.isActive,
         createdAt: link.createdAt.toISOString(),
       })),
+      rangeInfo: {
+        range,
+        startDate: startDateTime ? startDateTime.toISOString() : null,
+        endDate: endDateTime ? endDateTime.toISOString() : null,
+        timezone,
+      },
     };
   }
+}
+
+/**
+ * Ensures dates within the selected range are represented continuously with 0 for missing days.
+ */
+function buildContinuousTimeline(
+  rows: { date: string; clicks: number }[],
+  startDateTime: Date | null,
+  endDateTime: Date | null,
+  timezone: string,
+): TimelineItem[] {
+  const dateMap = new Map<string, number>();
+  for (const r of rows) {
+    dateMap.set(r.date, Number(r.clicks));
+  }
+
+  if (startDateTime && endDateTime) {
+    const cur = new Date(startDateTime);
+    let count = 0;
+    while (cur <= endDateTime && count < 3660) {
+      count++;
+      const dateStr = cur.toLocaleDateString('en-CA', { timeZone: timezone });
+      if (!dateMap.has(dateStr)) {
+        dateMap.set(dateStr, 0);
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+  }
+
+  return Array.from(dateMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, clicks]) => ({ date, clicks }));
 }

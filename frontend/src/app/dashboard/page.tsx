@@ -15,16 +15,17 @@ import { RecentLinks } from '@/components/dashboard/RecentLinks';
 import { CreateLinkDialog } from '@/components/dashboard/CreateLinkDialog';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { useDashboardData } from '@/lib/hooks/useDashboardData';
+import type { DateRangeFilter } from '@/lib/api/analytics';
 import { Menu, X, AlertCircle } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
   const [currentTab, setCurrentTab] = useState('Analytics');
-  const [selectedRange, setSelectedRange] = useState('Last 30 days');
+  const [dateFilter, setDateFilter] = useState<DateRangeFilter>({ range: '30d' });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { data, isLoading, error } = useDashboardData();
+  const { data, isLoading, error } = useDashboardData(dateFilter);
 
   const totalClicks = data?.stats[0]
     ? parseInt(data.stats[0].value.replace(/,/g, ''), 10) || 0
@@ -91,8 +92,8 @@ export default function DashboardPage() {
         {/* Desktop Header */}
         <Header
           onOpenCreateDialog={() => setIsCreateOpen(true)}
-          selectedRange={selectedRange}
-          onRangeChange={setSelectedRange}
+          dateFilter={dateFilter}
+          onDateFilterChange={setDateFilter}
         />
 
         {/* Scrollable Dashboard Body */}

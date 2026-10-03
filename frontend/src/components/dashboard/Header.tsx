@@ -1,19 +1,25 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Calendar, Bell, Plus, ChevronDown } from 'lucide-react';
+import { Search, Bell, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth.store';
+import { DateRangeSelector } from './DateRangeSelector';
+import type { DateRangeFilter } from '@/lib/api/analytics';
 
 interface HeaderProps {
   onOpenCreateDialog: () => void;
+  dateFilter?: DateRangeFilter;
+  onDateFilterChange?: (filter: DateRangeFilter) => void;
   selectedRange?: string;
   onRangeChange?: (range: string) => void;
 }
 
 export function Header({
   onOpenCreateDialog,
+  dateFilter,
+  onDateFilterChange,
   selectedRange = 'Last 30 days',
   onRangeChange,
 }: HeaderProps) {
@@ -29,10 +35,7 @@ export function Header({
     : (user?.email?.slice(0, 2).toUpperCase() ?? '??');
   const displayName = user?.name?.split(' ')[0] ?? (user?.email?.split('@')[0] ?? 'User');
 
-  const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const rangeOptions = ['Today', 'Last 7 days', 'Last 30 days', 'Last 3 months', 'Custom range'];
 
   return (
     <header className="flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 md:px-8 border-b border-stone-200/50 bg-[#F4F5F3]">
@@ -49,46 +52,19 @@ export function Header({
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+      <div className="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
         {/* Date Range Selector Pill */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setRangeMenuOpen(!rangeMenuOpen)}
-            className="flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-stone-200/70 text-xs font-medium text-[#1A2621] hover:bg-stone-50 shadow-2xs transition-colors"
-            aria-expanded={rangeMenuOpen}
-            aria-haspopup="true"
-          >
-            <Calendar className="w-3.5 h-3.5 text-[#236B56]" />
-            <span>{selectedRange}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-          </button>
-
-          {rangeMenuOpen && (
-            <div
-              className="absolute right-0 mt-2 w-44 rounded-2xl bg-white border border-stone-200 shadow-xl py-1.5 z-30 animate-in fade-in zoom-in-95"
-              role="menu"
-            >
-              {rangeOptions.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => {
-                    onRangeChange?.(opt);
-                    setRangeMenuOpen(false);
-                  }}
-                  className={cn(
-                    'w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-[#EBF5F1] hover:text-[#236B56]',
-                    selectedRange === opt ? 'text-[#236B56] font-semibold bg-[#EBF5F1]/60' : 'text-stone-700'
-                  )}
-                  role="menuitem"
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {dateFilter && onDateFilterChange ? (
+          <DateRangeSelector value={dateFilter} onChange={onDateFilterChange} />
+        ) : (
+          <DateRangeSelector
+            value={{ range: '30d' }}
+            onChange={(filter) => {
+              onRangeChange?.(filter.range);
+              onDateFilterChange?.(filter);
+            }}
+          />
+        )}
 
         {/* Create Short Link CTA */}
         <Button

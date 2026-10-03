@@ -10,6 +10,7 @@ import {
   RecentClickItem,
   TimelineItem,
 } from './analytics.service.js';
+import { DateRangeQueryDto } from './dto/date-range.dto.js';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -30,40 +31,45 @@ export class AnalyticsController {
   async getTimeline(
     @Param('id') id: string,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Query() query: DateRangeQueryDto,
   ): Promise<TimelineItem[]> {
-    return this.analyticsService.getTimeline(id, user.id);
+    return this.analyticsService.getTimeline(id, user.id, query);
   }
 
   @Get('links/:id/analytics/devices')
   async getDevices(
     @Param('id') id: string,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Query() query: DateRangeQueryDto,
   ): Promise<GroupedAnalyticsItem[]> {
-    return this.analyticsService.getDevices(id, user.id);
+    return this.analyticsService.getDevices(id, user.id, query);
   }
 
   @Get('links/:id/analytics/browsers')
   async getBrowsers(
     @Param('id') id: string,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Query() query: DateRangeQueryDto,
   ): Promise<GroupedAnalyticsItem[]> {
-    return this.analyticsService.getBrowsers(id, user.id);
+    return this.analyticsService.getBrowsers(id, user.id, query);
   }
 
   @Get('links/:id/analytics/referrers')
   async getReferrers(
     @Param('id') id: string,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Query() query: DateRangeQueryDto,
   ): Promise<GroupedAnalyticsItem[]> {
-    return this.analyticsService.getReferrers(id, user.id);
+    return this.analyticsService.getReferrers(id, user.id, query);
   }
 
   @Get('links/:id/analytics/countries')
   async getCountries(
     @Param('id') id: string,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Query() query: DateRangeQueryDto,
   ): Promise<GroupedAnalyticsItem[]> {
-    return this.analyticsService.getCountries(id, user.id);
+    return this.analyticsService.getCountries(id, user.id, query);
   }
 
   // ─── Global (user-scoped) analytics ──────────────────────────────────────────
@@ -78,8 +84,9 @@ export class AnalyticsController {
   @Get('analytics/overview')
   async getOverview(
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Query() query: DateRangeQueryDto,
   ): Promise<OverviewResponse> {
-    return this.analyticsService.getOverview(user.id);
+    return this.analyticsService.getOverview(user.id, query);
   }
 
   /**

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getAnalyticsOverview } from '@/lib/api/analytics';
-import type { GroupedResponseItem } from '@/lib/api/analytics';
+import type { GroupedResponseItem, DateRangeFilter } from '@/lib/api/analytics';
 
 // ─── Shared shape types that components consume ───────────────────────────────
 
@@ -123,110 +123,126 @@ const BASE_URL =
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useDashboardData() {
+export function useDashboardData(dateFilter?: DateRangeFilter) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const range = dateFilter?.range ?? '30d';
+  const startDate = dateFilter?.startDate;
+  const endDate = dateFilter?.endDate;
+  const timezone = dateFilter?.timezone;
 
-    async function load() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Single request replaces the previous 1 + 40 HTTP request fanout.
-        const overview = await getAnalyticsOverview();
-        if (cancelled) return;
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Single request per date-range change replaces any historical N+1 requests
+      const overview = await getAnalyticsOverview(dateFilter);
 
-        // Timeline: format ISO dates to display labels for the chart
-        const timeline: ChartPoint[] = overview.timeline.map((t) => ({
-          date: formatChartDate(t.date),
-          clicks: t.clicks,
-        }));
+      // Timeline: format ISO dates to display labels for the chart
+      const timeline: ChartPoint[] = overview.timeline.map((t) => ({
+        date: formatChartDate(t.date),
+        clicks: t.clicks,
+      }));
 
-        // Sparkline: last 7 days of the merged timeline
-        const sparkline7 = timeline.slice(-7).map((p) => p.clicks);
-        const spark = sparkline7.length > 0 ? sparkline7 : [0];
+      // Sparkline: last 7 points of the active timeline
+      const sparkline7 = timeline.slice(-7).map((p) => p.clicks);
+      const spark = sparkline7.length > 0 ? sparkline7 : [0];
 
-        // KPI stat cards
-        const stats: DashboardStat[] = [
-          {
-            title: 'Total Clicks',
-            value: overview.totalClicks.toLocaleString(),
-            change: 'All time',
-            period: 'across all links',
-            isPositive: true,
-            sparkline: spark,
-          },
-          {
-            title: 'Active Links',
-            value: overview.activeLinks.toLocaleString(),
-            change: `${overview.totalLinks} total`,
-            period: 'links created',
-            isPositive: true,
-            sparkline: Array.from({ length: 7 }, (_, i) =>
-              Math.max(1, overview.activeLinks - (6 - i)),
-            ),
-          },
-          {
-            title: 'Clicks Today',
-            value: overview.clicksToday.toLocaleString(),
-            change: overview.clicksToday > 0 ? 'Live' : 'None yet',
-            period: 'today so far',
-            isPositive: overview.clicksToday > 0,
-            sparkline: spark,
-          },
-          {
-            title: 'Links This Month',
-            value: overview.linksThisMonth.toLocaleString(),
-            change: 'This month',
-            period: 'new short links',
-            isPositive: true,
-            sparkline: spark,
-          },
-        ];
-
-        // Top links ranked by click count (already sorted by DB query)
-        const topLinks: TopLinkItem[] = overview.topLinks.map((l, idx) => ({
-          id: l.id,
-          shortCode: `/${l.shortCode}`,
-          destination: l.originalUrl.replace(/^https?:\/\//, '').split('/')[0] ?? l.originalUrl,
-          clicks: l.clickCount,
-          rank: idx + 1,
-        }));
-
-        // 5 most recent links
-        const recentLinks: RecentLinkItem[] = overview.recentLinks.map((l) => ({
-          id: l.id,
-          shortUrl: `/${l.shortCode}`,
-          fullShortUrl: `${BASE_URL}/${l.shortCode}`,
-          destination: l.originalUrl,
-          clicks: l.clickCount,
-          status: (l.isActive ? 'Active' : 'Paused') as 'Active' | 'Paused',
-          createdAt: relativeDate(l.createdAt),
-        }));
-
-        setData({
-          stats,
-          timeline,
-          devices: toDeviceItems(overview.devices),
-          browsers: toShareItems(overview.browsers),
-          countries: toShareItems(overview.countries),
-          topLinks,
-          recentLinks,
-          totalLinks: overview.totalLinks,
-        });
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load dashboard');
-      } finally {
-        if (!cancelled) setIsLoading(false);
+      // Dynamic KPI descriptions based on active range
+      let rangeLabel = 'Last 30 days';
+      let rangePeriod = 'in selected period';
+      if (range === '7d') {
+        rangeLabel = 'Last 7 days';
+      } else if (range === '90d') {
+        rangeLabel = 'Last 90 days';
+      } else if (range === 'all') {
+        rangeLabel = 'All time';
+        rangePeriod = 'across all links';
+      } else if (range === 'custom') {
+        rangeLabel = 'Custom range';
+        rangePeriod = startDate && endDate ? `${startDate} to ${endDate}` : 'in selected period';
       }
+
+      // KPI stat cards
+      const stats: DashboardStat[] = [
+        {
+          title: 'Total Clicks',
+          value: overview.totalClicks.toLocaleString(),
+          change: rangeLabel,
+          period: rangePeriod,
+          isPositive: true,
+          sparkline: spark,
+        },
+        {
+          title: 'Active Links',
+          value: overview.activeLinks.toLocaleString(),
+          change: `${overview.totalLinks} total`,
+          period: 'links created',
+          isPositive: true,
+          sparkline: Array.from({ length: 7 }, (_, i) =>
+            Math.max(1, overview.activeLinks - (6 - i)),
+          ),
+        },
+        {
+          title: 'Clicks Today',
+          value: overview.clicksToday.toLocaleString(),
+          change: overview.clicksToday > 0 ? 'Live' : 'None yet',
+          period: 'today so far',
+          isPositive: overview.clicksToday > 0,
+          sparkline: spark,
+        },
+        {
+          title: 'Links This Month',
+          value: overview.linksThisMonth.toLocaleString(),
+          change: 'This month',
+          period: 'new short links',
+          isPositive: true,
+          sparkline: spark,
+        },
+      ];
+
+      // Top links ranked by click count (already filtered and sorted by PostgreSQL query)
+      const topLinks: TopLinkItem[] = overview.topLinks.map((l, idx) => ({
+        id: l.id,
+        shortCode: `/${l.shortCode}`,
+        destination: l.originalUrl.replace(/^https?:\/\//, '').split('/')[0] ?? l.originalUrl,
+        clicks: l.clickCount,
+        rank: idx + 1,
+      }));
+
+      // 5 most recent links
+      const recentLinks: RecentLinkItem[] = overview.recentLinks.map((l) => ({
+        id: l.id,
+        shortUrl: `/${l.shortCode}`,
+        fullShortUrl: `${BASE_URL}/${l.shortCode}`,
+        destination: l.originalUrl,
+        clicks: l.clickCount,
+        status: (l.isActive ? 'Active' : 'Paused') as 'Active' | 'Paused',
+        createdAt: relativeDate(l.createdAt),
+      }));
+
+      setData({
+        stats,
+        timeline,
+        devices: toDeviceItems(overview.devices),
+        browsers: toShareItems(overview.browsers),
+        countries: toShareItems(overview.countries),
+        topLinks,
+        recentLinks,
+        totalLinks: overview.totalLinks,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setIsLoading(false);
     }
+  }, [dateFilter, range, startDate, endDate, timezone]);
 
+  useEffect(() => {
     void load();
-    return () => { cancelled = true; };
-  }, []);
+  }, [load]);
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, refetch: load };
 }

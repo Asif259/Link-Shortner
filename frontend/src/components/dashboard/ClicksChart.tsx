@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   AreaChart,
   Area,
@@ -39,11 +39,7 @@ interface ClicksChartProps {
   title?: string;
   subtitle?: string;
   note?: string;
-}
-
-/** Returns the last N days of data from a full timeline. */
-function filterDays(data: ChartPoint[], days: number): ChartPoint[] {
-  return data.slice(-days);
+  badgeLabel?: string;
 }
 
 export function ClicksChart({
@@ -51,17 +47,10 @@ export function ClicksChart({
   title = 'Clicks Over Time',
   subtitle = 'Daily click volume across all your short links',
   note = 'Aggregated across all links',
+  badgeLabel,
 }: ClicksChartProps) {
-  const [timeframe, setTimeframe] = useState<'7 Days' | '30 Days' | '3 Months'>('30 Days');
-
-  const dataMap = {
-    '7 Days': filterDays(allData, 7),
-    '30 Days': filterDays(allData, 30),
-    '3 Months': filterDays(allData, 90),
-  };
-  const data = dataMap[timeframe];
-
-  const timeframes: Array<'7 Days' | '30 Days' | '3 Months'> = ['7 Days', '30 Days', '3 Months'];
+  const data = allData;
+  const countLabel = badgeLabel || (data.length > 0 ? `${data.length} ${data.length === 1 ? 'day' : 'days'}` : undefined);
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-stone-200/60 shadow-2xs flex flex-col">
@@ -71,22 +60,11 @@ export function ClicksChart({
           <p className="text-xs text-[#61726A] mt-0.5">{subtitle}</p>
         </div>
 
-        <div className="flex items-center bg-[#F4F5F3] p-1 rounded-full border border-stone-200/60 self-start sm:self-auto">
-          {timeframes.map((tf) => (
-            <button
-              key={tf}
-              type="button"
-              onClick={() => setTimeframe(tf)}
-              className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all ${
-                timeframe === tf
-                  ? 'bg-[#236B56] text-white shadow-2xs'
-                  : 'text-stone-600 hover:text-[#1A2621]'
-              }`}
-            >
-              {tf}
-            </button>
-          ))}
-        </div>
+        {countLabel && (
+          <div className="flex items-center px-3 py-1 rounded-full bg-[#EBF5F1] text-[#236B56] border border-[#236B56]/20 self-start sm:self-auto text-xs font-semibold shadow-2xs">
+            {countLabel}
+          </div>
+        )}
       </div>
 
       <div className="w-full h-64 sm:h-72">
