@@ -20,14 +20,24 @@ import { createLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
 import { getShortBaseUrl } from '@/lib/utils/url';
 import { QRCodeDialog } from '@/components/dashboard/links/QRCodeDialog';
+import { getGroups } from '@/lib/api/groups';
+import type { GroupListItem } from '@/lib/api/groups';
 
 interface CreateLinkDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onLinkCreated?: (newLink: LinkItem) => void;
+  onSuccess?: () => void;
+  defaultGroupId?: string;
 }
 
-export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkDialogProps) {
+export function CreateLinkDialog({
+  isOpen,
+  onClose,
+  onLinkCreated,
+  onSuccess,
+  defaultGroupId,
+}: CreateLinkDialogProps) {
   const [baseUrl, setBaseUrl] = useState(() => getShortBaseUrl());
 
   useEffect(() => {
@@ -36,11 +46,27 @@ export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkD
 
   const [destination, setDestination] = useState('');
   const [alias, setAlias] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState(defaultGroupId || '');
+  const [groups, setGroups] = useState<GroupListItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdLink, setCreatedLink] = useState<LinkItem | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
+
+  useEffect(() => {
+    if (defaultGroupId) {
+      setSelectedGroupId(defaultGroupId);
+    }
+  }, [defaultGroupId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      getGroups()
+        .then((res) => setGroups(res))
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   const { toast } = useToast();
 
@@ -90,10 +116,12 @@ export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkD
       const newLink = await createLink({
         originalUrl: validUrl,
         shortCode: alias.trim() ? alias.trim().replace(/^\//, '') : undefined,
+        groupId: selectedGroupId || undefined,
       });
 
       setCreatedLink(newLink);
       onLinkCreated?.(newLink);
+      onSuccess?.();
       toast('Short link generated successfully!', 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create short link';
@@ -297,6 +325,28 @@ export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkD
               </p>
             )}
           </div>
+
+          {/* Group Assignment */}
+          {groups.length > 0 && (
+            <div className="space-y-1.5">
+              <label htmlFor="create-group" className="text-xs font-semibold text-[#1A2621]">
+                Assign to Group <span className="text-stone-400 font-normal">(optional)</span>
+              </label>
+              <select
+                id="create-group"
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+                className="w-full h-10 px-3.5 text-xs rounded-full border border-stone-200 bg-white text-[#1A2621] focus:outline-hidden focus:ring-2 focus:ring-[#236B56]/20 cursor-pointer"
+              >
+                <option value="">No Group (Ungrouped)</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-100">

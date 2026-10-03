@@ -5,6 +5,7 @@ export type LinkStatus = 'active' | 'disabled' | 'expired';
 export interface Link {
   id: string;
   userId?: string;
+  groupId?: string | null;
   shortCode: string;
   originalUrl: string;
   createdAt: string;
@@ -24,12 +25,14 @@ export interface GetLinksParams {
 export interface CreateLinkInput {
   originalUrl: string;
   shortCode?: string;
+  groupId?: string | null;
 }
 
 export interface UpdateLinkInput {
   originalUrl?: string;
   shortCode?: string;
   status?: LinkStatus;
+  groupId?: string | null;
 }
 
 export interface PaginationMeta {

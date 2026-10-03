@@ -37,9 +37,9 @@ export function Sidebar({ currentTab, onTabChange, className }: SidebarProps) {
   const navItems: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Links', href: '/dashboard/links', icon: LinkIcon },
-    { name: 'Analytics', href: '/dashboard', icon: BarChart3 },
-    { name: 'Groups', href: '#', icon: Folder },
-    { name: 'QR Codes', href: '#', icon: QrCode },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+    { name: 'Groups', href: '/dashboard/groups', icon: Folder },
+    { name: 'QR Codes', href: '/dashboard/qr-codes', icon: QrCode },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
 
@@ -68,8 +68,11 @@ export function Sidebar({ currentTab, onTabChange, className }: SidebarProps) {
         <nav className="space-y-1.5" aria-label="Main Navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isCurrentPath = item.href !== '#' && (pathname === item.href || (item.name === 'Dashboard' && pathname === '/'));
-            const isActive = currentTab ? (item.name === currentTab) : isCurrentPath;
+            const isPathActive =
+              item.href === '/dashboard'
+                ? pathname === '/dashboard' || pathname === '/'
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isActive = currentTab ? item.name === currentTab : isPathActive;
 
             return (
               <Link

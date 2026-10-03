@@ -8,6 +8,8 @@ import { useToast } from '@/components/ui/toast';
 import { Edit, Link2 } from 'lucide-react';
 import { updateLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
+import { getGroups } from '@/lib/api/groups';
+import type { GroupListItem } from '@/lib/api/groups';
 
 interface EditLinkDialogProps {
   link: LinkItem | null;
@@ -19,16 +21,28 @@ interface EditLinkDialogProps {
 export function EditLinkDialog({ link, isOpen, onClose, onLinkUpdated }: EditLinkDialogProps) {
   const [originalUrl, setOriginalUrl] = useState('');
   const [shortCode, setShortCode] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [groups, setGroups] = useState<GroupListItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { toast } = useToast();
+
+  // Load user groups when opened
+  useEffect(() => {
+    if (isOpen) {
+      getGroups()
+        .then((res) => setGroups(res))
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   // Sync form state whenever link changes
   useEffect(() => {
     if (link) {
       setOriginalUrl(link.originalUrl);
       setShortCode(link.shortCode.replace(/^\//, ''));
+      setSelectedGroupId(link.groupId || '');
       setError(null);
     }
   }, [link]);
@@ -74,6 +88,7 @@ export function EditLinkDialog({ link, isOpen, onClose, onLinkUpdated }: EditLin
       const updated = await updateLink(link.id, {
         originalUrl: validUrl,
         shortCode: shortCode.trim() !== link.shortCode ? shortCode.trim() : undefined,
+        groupId: selectedGroupId || null,
       });
 
       onLinkUpdated?.(updated);
@@ -150,6 +165,28 @@ export function EditLinkDialog({ link, isOpen, onClose, onLinkUpdated }: EditLin
             />
           </div>
         </div>
+
+        {/* Group Assignment */}
+        {groups.length > 0 && (
+          <div className="space-y-1.5">
+            <label htmlFor="edit-group" className="text-xs font-semibold text-[#1A2621]">
+              Group <span className="text-stone-400 font-normal">(optional)</span>
+            </label>
+            <select
+              id="edit-group"
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="w-full h-10 px-3.5 text-xs rounded-full border border-stone-200 bg-white text-[#1A2621] focus:outline-hidden focus:ring-2 focus:ring-[#236B56]/20 cursor-pointer"
+            >
+              <option value="">No Group (Ungrouped)</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-100">

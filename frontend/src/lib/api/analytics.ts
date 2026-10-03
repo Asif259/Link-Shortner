@@ -131,6 +131,7 @@ export interface AnalyticsOverviewResponse {
   devices: GroupedResponseItem[];
   browsers: GroupedResponseItem[];
   countries: GroupedResponseItem[];
+  referrers: GroupedResponseItem[];
   topLinks: OverviewTopLink[];
   recentLinks: OverviewRecentLink[];
   rangeInfo?: {

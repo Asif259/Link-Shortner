@@ -38,3 +38,12 @@ export function getDisplayHost(urlOrHost: string): string {
     return urlOrHost;
   }
 }
+
+/**
+ * Formats a short code into a full clickable URL.
+ */
+export function formatShortUrl(shortCode: string, baseUrl?: string): string {
+  const cleanBase = (baseUrl || getShortBaseUrl()).replace(/\/+$/, '');
+  const cleanCode = (shortCode || '').replace(/^\/+/, '');
+  return `${cleanBase}/${cleanCode}`;
+}
