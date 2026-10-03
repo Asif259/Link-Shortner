@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Copy, Check, ExternalLink, BarChart2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getDisplayHost } from '@/lib/utils/url';
 import type { Link as LinkItem } from '@/lib/api/links';
 import { LinkActions } from './LinkActions';
 
@@ -28,6 +29,7 @@ export function LinksTableRow({
   const [copied, setCopied] = useState(false);
 
   const fullShortUrl = `${baseUrl}/${link.shortCode.replace(/^\//, '')}`;
+  const displayHost = useMemo(() => getDisplayHost(baseUrl), [baseUrl]);
 
   const handleCopyClick = () => {
     onCopy(link);
@@ -57,14 +59,19 @@ export function LinksTableRow({
       {/* Short Link + Quick Action Buttons */}
       <td className="py-3 px-4 font-semibold text-[#1A2621]">
         <div className="flex items-center gap-2">
-          <span
+          <div
             onClick={() => onViewAnalytics(link)}
-            className="text-[#236B56] hover:text-[#1C5745] hover:underline cursor-pointer font-bold text-sm tracking-tight"
-            title="View link analytics"
+            className="cursor-pointer group/slug flex items-center min-w-0"
+            title={`View analytics for ${fullShortUrl}`}
           >
-            {fullShortUrl.replace(/^https?:\/\//, '')}
-          </span>
-          <div className="flex items-center gap-1">
+            <span className="text-stone-400 font-medium text-xs truncate max-w-[140px] hidden sm:inline select-none">
+              {displayHost}/
+            </span>
+            <span className="text-[#236B56] group-hover/slug:text-[#1C5745] group-hover/slug:underline font-bold text-sm tracking-tight truncate">
+              {link.shortCode.replace(/^\//, '')}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
             {/* Copy Button (Fitts's Law comfortable touch target) */}
             <button
               type="button"

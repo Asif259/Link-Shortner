@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { createLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
+import { getShortBaseUrl } from '@/lib/utils/url';
 
 interface CreateLinkDialogProps {
   isOpen: boolean;
@@ -24,9 +25,13 @@ interface CreateLinkDialogProps {
   onLinkCreated?: (newLink: LinkItem) => void;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_SHORT_URL || 'http://localhost:3000';
-
 export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkDialogProps) {
+  const [baseUrl, setBaseUrl] = useState(() => getShortBaseUrl());
+
+  useEffect(() => {
+    setBaseUrl(getShortBaseUrl());
+  }, []);
+
   const [destination, setDestination] = useState('');
   const [alias, setAlias] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,7 +102,7 @@ export function CreateLinkDialog({ isOpen, onClose, onLinkCreated }: CreateLinkD
   };
 
   const fullShortUrl = createdLink
-    ? `${BASE_URL}/${createdLink.shortCode.replace(/^\//, '')}`
+    ? `${baseUrl}/${createdLink.shortCode.replace(/^\//, '')}`
     : '';
 
   const handleCopy = () => {

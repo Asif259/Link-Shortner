@@ -55,14 +55,19 @@ import {
   formatChartDate,
 } from '@/lib/hooks/useDashboardData';
 import { cn } from '@/lib/utils';
-
-const BASE_URL = process.env.NEXT_PUBLIC_SHORT_URL || 'http://localhost:3000';
+import { getShortBaseUrl } from '@/lib/utils/url';
 
 export default function LinkAnalyticsPage() {
   const params = useParams<{ id: string }>();
   const linkId = params?.id;
   const router = useRouter();
   const { toast } = useToast();
+
+  const [baseUrl, setBaseUrl] = useState(() => getShortBaseUrl());
+
+  useEffect(() => {
+    setBaseUrl(getShortBaseUrl());
+  }, []);
 
   const [link, setLink] = useState<LinkItem | null>(null);
   const [stats, setStats] = useState<DashboardStat[]>([]);
@@ -187,7 +192,7 @@ export default function LinkAnalyticsPage() {
     void loadData();
   }, [loadData]);
 
-  const fullShortUrl = link ? `${BASE_URL}/${link.shortCode.replace(/^\//, '')}` : '';
+  const fullShortUrl = link ? `${baseUrl}/${link.shortCode.replace(/^\//, '')}` : '';
 
   const handleCopy = () => {
     if (!fullShortUrl) return;

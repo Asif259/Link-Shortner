@@ -15,12 +15,16 @@ import { getLinks, deleteLink, disableLink, enableLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
 import { Loader2, Menu, X, LinkIcon, Sparkles, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-const BASE_URL = process.env.NEXT_PUBLIC_SHORT_URL || 'http://localhost:3000';
+import { getShortBaseUrl } from '@/lib/utils/url';
 
 export default function LinksPage() {
   const router = useRouter();
   const [links, setLinks] = useState<LinkItem[]>([]);
+  const [baseUrl, setBaseUrl] = useState(() => getShortBaseUrl());
+
+  useEffect(() => {
+    setBaseUrl(getShortBaseUrl());
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -52,7 +56,7 @@ export default function LinksPage() {
   }, [fetchLinks, search]);
 
   const handleCopy = (link: LinkItem) => {
-    const url = `${BASE_URL}/${link.shortCode.replace(/^\//, '')}`;
+    const url = `${baseUrl}/${link.shortCode.replace(/^\//, '')}`;
     navigator.clipboard.writeText(url).then(() => {
       toast('Copied to clipboard!', 'success');
     });
@@ -233,7 +237,7 @@ export default function LinksPage() {
                       <LinksTableRow
                         key={link.id}
                         link={link}
-                        baseUrl={BASE_URL}
+                        baseUrl={baseUrl}
                         onCopy={handleCopy}
                         onViewAnalytics={(l) => {
                           router.push(`/dashboard/links/${l.id}`);
