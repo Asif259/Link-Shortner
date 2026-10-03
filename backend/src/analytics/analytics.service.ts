@@ -280,13 +280,14 @@ export class AnalyticsService {
   ): Promise<TimelineItem[]> {
     await this.validateLinkOwnership(linkId, userId);
     const { startDateTime, endDateTime, timezone } = resolveDateRange(query);
+    const safeTz = timezone.replace(/[^A-Za-z0-9_+\-/]/g, '') || 'UTC';
+    const dateExpr = `TO_CHAR(click.timestamp AT TIME ZONE '${safeTz}', 'YYYY-MM-DD')`;
 
     const qb = this.clickRepository
       .createQueryBuilder('click')
-      .select(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`, 'date')
+      .select(dateExpr, 'date')
       .addSelect('COUNT(*)::int', 'clicks')
-      .where('click.link_id = :linkId', { linkId })
-      .setParameter('timezone', timezone);
+      .where('click.link_id = :linkId', { linkId });
 
     if (startDateTime) {
       qb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
@@ -296,7 +297,7 @@ export class AnalyticsService {
     }
 
     const rows = await qb
-      .groupBy(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`)
+      .groupBy(dateExpr)
       .orderBy('date', 'ASC')
       .getRawMany<{ date: string; clicks: number }>();
 
@@ -451,13 +452,15 @@ export class AnalyticsService {
     }
 
     // 2. Timeline in range
+    const safeTz = timezone.replace(/[^A-Za-z0-9_+\-/]/g, '') || 'UTC';
+    const dateExpr = `TO_CHAR(click.timestamp AT TIME ZONE '${safeTz}', 'YYYY-MM-DD')`;
+
     const timelineQb = this.clickRepository
       .createQueryBuilder('click')
       .innerJoin('click.link', 'link')
-      .select(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`, 'date')
+      .select(dateExpr, 'date')
       .addSelect('COUNT(*)::int', 'clicks')
-      .where('link.user_id = :userId', { userId })
-      .setParameter('timezone', timezone);
+      .where('link.user_id = :userId', { userId });
     if (startDateTime) {
       timelineQb.andWhere('click.timestamp >= :startDateTime', { startDateTime });
     }
@@ -465,7 +468,7 @@ export class AnalyticsService {
       timelineQb.andWhere('click.timestamp <= :endDateTime', { endDateTime });
     }
     timelineQb
-      .groupBy(`TO_CHAR(click.timestamp AT TIME ZONE :timezone, 'YYYY-MM-DD')`)
+      .groupBy(dateExpr)
       .orderBy('date', 'ASC');
 
     // 3. Devices in range
@@ -538,7 +541,6 @@ export class AnalyticsService {
       .where('link.user_id = :userId', { userId })
       .groupBy('link.id')
       .orderBy('clickCount', 'DESC')
-      .addOrderBy('link.created_at', 'DESC')
       .limit(5);
 
     const [
