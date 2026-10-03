@@ -6,6 +6,8 @@ import { Click } from '../analytics/entities/click.entity.js';
 
 config();
 
+const sslMode = process.env.DATABASE_SSL === 'true';
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DATABASE_HOST || 'localhost',
@@ -16,4 +18,6 @@ export const AppDataSource = new DataSource({
   entities: [User, Link, Click],
   migrations: ['dist/database/migrations/*.js'],
   synchronize: false,
+  ssl: sslMode ? { rejectUnauthorized: false } : false,
 });
+

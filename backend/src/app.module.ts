@@ -48,21 +48,25 @@ import { Click } from './analytics/entities/click.entity.js';
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
+      useFactory: (configService: ConfigService) => {
+        const isSsl = configService.get<string>('DATABASE_SSL') === 'true';
+        return {
+          type: 'postgres',
 
-        host: configService.get<string>('DATABASE_HOST', 'localhost'),
-        port: configService.get<number>('DATABASE_PORT', 5432),
-        username: configService.get<string>('DATABASE_USER', 'postgres'),
-        password: configService.get<string>('DATABASE_PASSWORD', 'postgres'),
-        database: configService.get<string>('DATABASE_NAME', 'link_shortener'),
+          host: configService.get<string>('DATABASE_HOST', 'localhost'),
+          port: configService.get<number>('DATABASE_PORT', 5432),
+          username: configService.get<string>('DATABASE_USER', 'postgres'),
+          password: configService.get<string>('DATABASE_PASSWORD', 'postgres'),
+          database: configService.get<string>('DATABASE_NAME', 'link_shortener'),
 
-        entities: [User, Link, Click],
-        autoLoadEntities: true,
+          entities: [User, Link, Click],
+          autoLoadEntities: true,
 
-        // Set to false in production & development when using migrations
-        synchronize: false,
-      }),
+          // Set to false in production & development when using migrations
+          synchronize: false,
+          ssl: isSsl ? { rejectUnauthorized: false } : false,
+        };
+      },
     }),
 
     UsersModule,

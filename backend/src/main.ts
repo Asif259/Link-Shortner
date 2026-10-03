@@ -39,14 +39,19 @@ async function bootstrap() {
   );
 
   /**
-   * CORS — restrict to the configured frontend origin only.
+   * CORS — restrict to the configured frontend origin(s).
    *
    * Using origin: '*' with credentialed requests is rejected by browsers.
-   * The backend must specify an exact origin when cookies/Authorization
-   * headers are involved. Misconfigured wildcard CORS + auth headers = ATO risk.
+   * Supports comma-separated domains (e.g. "http://localhost:3001,https://your-app.vercel.app")
+   * for smooth dev + staging + production setup.
    */
+  const frontendEnv = process.env.FRONTEND_URL ?? 'http://localhost:3001';
+  const allowedOrigins = frontendEnv.includes(',')
+    ? frontendEnv.split(',').map((url) => url.trim())
+    : frontendEnv;
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:3001',
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -75,6 +80,7 @@ async function bootstrap() {
    */
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = parseInt(process.env.PORT ?? '3000', 10);
+  await app.listen(port, '0.0.0.0');
 }
 await bootstrap();
