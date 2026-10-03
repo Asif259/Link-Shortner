@@ -129,5 +129,28 @@ describe('AnalyticsService', () => {
         }),
       ).toThrow();
     });
+
+    it('should validate with NestJS ValidationPipe without throwing non-whitelisted property errors', async () => {
+      const { ValidationPipe } = await import('@nestjs/common');
+      const { plainToInstance } = await import('class-transformer');
+      const { validate } = await import('class-validator');
+      const { DateRangeQueryDto } = await import('./dto/date-range.dto.js');
+
+      const dto = plainToInstance(DateRangeQueryDto, {
+        range: '30d',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        timezone: 'Asia/Dhaka',
+      });
+
+      const errors = await validate(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+
+      expect(errors).toHaveLength(0);
+      expect(dto.range).toBe('30d');
+      expect(dto.timezone).toBe('Asia/Dhaka');
+    });
   });
 });

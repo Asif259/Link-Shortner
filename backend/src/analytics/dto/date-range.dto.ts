@@ -1,11 +1,23 @@
 import { BadRequestException } from '@nestjs/common';
+import { IsOptional, IsString } from 'class-validator';
 
 export type DateRangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 
 export class DateRangeQueryDto {
+  @IsOptional()
+  @IsString()
   range?: string;
+
+  @IsOptional()
+  @IsString()
   startDate?: string;
+
+  @IsOptional()
+  @IsString()
   endDate?: string;
+
+  @IsOptional()
+  @IsString()
   timezone?: string;
 }
 
