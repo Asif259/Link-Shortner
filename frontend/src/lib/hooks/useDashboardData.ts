@@ -1,15 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getLinks } from '@/lib/api/links';
-import type { Link } from '@/lib/api/links';
-import {
-  getLinkTimeline,
-  getLinkDevices,
-  getLinkBrowsers,
-  getLinkCountries,
-} from '@/lib/api/analytics';
-import type { TimelineResponseItem, GroupedResponseItem } from '@/lib/api/analytics';
+import { getAnalyticsOverview } from '@/lib/api/analytics';
+import type { GroupedResponseItem } from '@/lib/api/analytics';
 
 // ─── Shared shape types that components consume ───────────────────────────────
 
@@ -75,32 +68,6 @@ export const PALETTE = ['#236B56', '#2F856D', '#3BA385', '#55BFA0', '#7DD4BE', '
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Merge multiple grouped arrays summing clicks by name. */
-export function mergeGrouped(arrays: GroupedResponseItem[][]): GroupedResponseItem[] {
-  const totals = new Map<string, number>();
-  for (const arr of arrays) {
-    for (const { name, clicks } of arr) {
-      totals.set(name, (totals.get(name) ?? 0) + clicks);
-    }
-  }
-  return Array.from(totals.entries())
-    .map(([name, clicks]) => ({ name, clicks }))
-    .sort((a, b) => b.clicks - a.clicks);
-}
-
-/** Merge multiple timeline arrays summing clicks by ISO date. */
-export function mergeTimeline(arrays: TimelineResponseItem[][]): ChartPoint[] {
-  const totals = new Map<string, number>();
-  for (const arr of arrays) {
-    for (const { date, clicks } of arr) {
-      totals.set(date, (totals.get(date) ?? 0) + clicks);
-    }
-  }
-  return Array.from(totals.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, clicks]) => ({ date: formatChartDate(date), clicks }));
-}
-
 /** Format ISO date (YYYY-MM-DD) to short label (e.g. "Sep 3"). */
 export function formatChartDate(iso: string): string {
   try {
@@ -149,7 +116,10 @@ function relativeDate(isoString: string): string {
   }
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_SHORT_URL || 'http://localhost:3000';
+const BASE_URL =
+  typeof window !== 'undefined'
+    ? (process.env.NEXT_PUBLIC_SHORT_URL ?? window.location.origin)
+    : (process.env.NEXT_PUBLIC_SHORT_URL ?? 'http://localhost:3000');
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -165,58 +135,25 @@ export function useDashboardData() {
       setIsLoading(true);
       setError(null);
       try {
-        // 1. Fetch all user links (sorted newest first, high limit to get all)
-        const links = await getLinks({ sort: 'newest', limit: 200 });
+        // Single request replaces the previous 1 + 40 HTTP request fanout.
+        const overview = await getAnalyticsOverview();
         if (cancelled) return;
 
-        // 2. Fan out analytics for up to 10 most-clicked links
-        //    (avoids N+1 explosion for users with hundreds of links)
-        const sortedByClicks = [...links].sort(
-          (a, b) => (b.clickCount ?? 0) - (a.clickCount ?? 0),
-        );
-        const topN = sortedByClicks.slice(0, 10);
+        // Timeline: format ISO dates to display labels for the chart
+        const timeline: ChartPoint[] = overview.timeline.map((t) => ({
+          date: formatChartDate(t.date),
+          clicks: t.clicks,
+        }));
 
-        const [timelineResults, deviceResults, browserResults, countryResults] = await Promise.all([
-          Promise.allSettled(topN.map((l) => getLinkTimeline(l.id))),
-          Promise.allSettled(topN.map((l) => getLinkDevices(l.id))),
-          Promise.allSettled(topN.map((l) => getLinkBrowsers(l.id))),
-          Promise.allSettled(topN.map((l) => getLinkCountries(l.id))),
-        ]);
-
-        if (cancelled) return;
-
-        // Extract fulfilled values only — partial failure is acceptable
-        const timelines = timelineResults
-          .filter((r): r is PromiseFulfilledResult<TimelineResponseItem[]> => r.status === 'fulfilled')
-          .map((r) => r.value);
-        const devicesArr = deviceResults
-          .filter((r): r is PromiseFulfilledResult<GroupedResponseItem[]> => r.status === 'fulfilled')
-          .map((r) => r.value);
-        const browsersArr = browserResults
-          .filter((r): r is PromiseFulfilledResult<GroupedResponseItem[]> => r.status === 'fulfilled')
-          .map((r) => r.value);
-        const countriesArr = countryResults
-          .filter((r): r is PromiseFulfilledResult<GroupedResponseItem[]> => r.status === 'fulfilled')
-          .map((r) => r.value);
-
-        // 3. Aggregate
-        const totalClicks = links.reduce((s, l) => s + (l.clickCount ?? 0), 0);
-        const activeLinks = links.filter((l) => (l.status ?? 'active') === 'active').length;
-        const mergedTimeline = mergeTimeline(timelines);
-
-        // Clicks today: last entry in timeline that matches today's date
-        const todayIso = new Date().toISOString().slice(0, 10);
-        const clicksToday = timelines.flat().filter((t) => t.date === todayIso).reduce((s, t) => s + t.clicks, 0);
-
-        // Sparklines: last 7 daily totals
-        const sparkline7 = mergedTimeline.slice(-7).map((p) => p.clicks);
+        // Sparkline: last 7 days of the merged timeline
+        const sparkline7 = timeline.slice(-7).map((p) => p.clicks);
         const spark = sparkline7.length > 0 ? sparkline7 : [0];
 
-        // 4. Build stat cards
+        // KPI stat cards
         const stats: DashboardStat[] = [
           {
             title: 'Total Clicks',
-            value: totalClicks.toLocaleString(),
+            value: overview.totalClicks.toLocaleString(),
             change: 'All time',
             period: 'across all links',
             isPositive: true,
@@ -224,29 +161,25 @@ export function useDashboardData() {
           },
           {
             title: 'Active Links',
-            value: activeLinks.toLocaleString(),
-            change: `${links.length} total`,
+            value: overview.activeLinks.toLocaleString(),
+            change: `${overview.totalLinks} total`,
             period: 'links created',
             isPositive: true,
-            sparkline: Array.from({ length: 7 }, (_, i) => Math.max(1, activeLinks - (6 - i))),
+            sparkline: Array.from({ length: 7 }, (_, i) =>
+              Math.max(1, overview.activeLinks - (6 - i)),
+            ),
           },
           {
             title: 'Clicks Today',
-            value: clicksToday.toLocaleString(),
-            change: clicksToday > 0 ? 'Live' : 'None yet',
+            value: overview.clicksToday.toLocaleString(),
+            change: overview.clicksToday > 0 ? 'Live' : 'None yet',
             period: 'today so far',
-            isPositive: clicksToday > 0,
+            isPositive: overview.clicksToday > 0,
             sparkline: spark,
           },
           {
             title: 'Links This Month',
-            value: links
-              .filter((l) => {
-                const d = new Date(l.createdAt);
-                const now = new Date();
-                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-              })
-              .length.toLocaleString(),
+            value: overview.linksThisMonth.toLocaleString(),
             change: 'This month',
             period: 'new short links',
             isPositive: true,
@@ -254,35 +187,35 @@ export function useDashboardData() {
           },
         ];
 
-        // 5. Top links (by click count)
-        const topLinks: TopLinkItem[] = sortedByClicks.slice(0, 5).map((l, idx) => ({
+        // Top links ranked by click count (already sorted by DB query)
+        const topLinks: TopLinkItem[] = overview.topLinks.map((l, idx) => ({
           id: l.id,
           shortCode: `/${l.shortCode}`,
           destination: l.originalUrl.replace(/^https?:\/\//, '').split('/')[0] ?? l.originalUrl,
-          clicks: l.clickCount ?? 0,
+          clicks: l.clickCount,
           rank: idx + 1,
         }));
 
-        // 6. Recent links (5 most recent)
-        const recentLinks: RecentLinkItem[] = links.slice(0, 5).map((l) => ({
+        // 5 most recent links
+        const recentLinks: RecentLinkItem[] = overview.recentLinks.map((l) => ({
           id: l.id,
           shortUrl: `/${l.shortCode}`,
           fullShortUrl: `${BASE_URL}/${l.shortCode}`,
           destination: l.originalUrl,
-          clicks: l.clickCount ?? 0,
-          status: (l.status === 'disabled' ? 'Paused' : 'Active') as 'Active' | 'Paused',
+          clicks: l.clickCount,
+          status: (l.isActive ? 'Active' : 'Paused') as 'Active' | 'Paused',
           createdAt: relativeDate(l.createdAt),
         }));
 
         setData({
           stats,
-          timeline: mergedTimeline,
-          devices: toDeviceItems(mergeGrouped(devicesArr)),
-          browsers: toShareItems(mergeGrouped(browsersArr)),
-          countries: toShareItems(mergeGrouped(countriesArr)),
+          timeline,
+          devices: toDeviceItems(overview.devices),
+          browsers: toShareItems(overview.browsers),
+          countries: toShareItems(overview.countries),
           topLinks,
           recentLinks,
-          totalLinks: links.length,
+          totalLinks: overview.totalLinks,
         });
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load dashboard');

@@ -6,6 +6,7 @@ import {
   AnalyticsService,
   AnalyticsSummary,
   GroupedAnalyticsItem,
+  OverviewResponse,
   RecentClickItem,
   TimelineItem,
 } from './analytics.service.js';
@@ -66,6 +67,20 @@ export class AnalyticsController {
   }
 
   // ─── Global (user-scoped) analytics ──────────────────────────────────────────
+
+  /**
+   * Account-wide aggregated analytics in a single request.
+   *
+   * Replaces the N×4 per-link fanout the frontend previously performed.
+   * Runs 9 parallel PostgreSQL queries (all joined on links.user_id)
+   * and returns a single typed payload the dashboard hook consumes directly.
+   */
+  @Get('analytics/overview')
+  async getOverview(
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<OverviewResponse> {
+    return this.analyticsService.getOverview(user.id);
+  }
 
   /**
    * Returns the most recent clicks across ALL of the authenticated user's links.

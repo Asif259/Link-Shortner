@@ -55,3 +55,39 @@ export async function getRecentClicks(limit = 20): Promise<RecentClickItem[]> {
   return apiClient<RecentClickItem[]>(`/analytics/recent?limit=${limit}`);
 }
 
+// ─── Account-wide overview (single-request replacement for N+1 fanout) ────────
+
+export interface OverviewTopLink {
+  id: string;
+  shortCode: string;
+  originalUrl: string;
+  clickCount: number;
+  isActive: boolean;
+}
+
+export interface OverviewRecentLink {
+  id: string;
+  shortCode: string;
+  originalUrl: string;
+  clickCount: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface AnalyticsOverviewResponse {
+  totalClicks: number;
+  clicksToday: number;
+  totalLinks: number;
+  activeLinks: number;
+  linksThisMonth: number;
+  timeline: TimelineResponseItem[];
+  devices: GroupedResponseItem[];
+  browsers: GroupedResponseItem[];
+  countries: GroupedResponseItem[];
+  topLinks: OverviewTopLink[];
+  recentLinks: OverviewRecentLink[];
+}
+
+export async function getAnalyticsOverview(): Promise<AnalyticsOverviewResponse> {
+  return apiClient<AnalyticsOverviewResponse>('/analytics/overview');
+}
