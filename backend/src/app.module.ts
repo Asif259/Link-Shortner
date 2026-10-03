@@ -49,10 +49,24 @@ import { Click } from './analytics/entities/click.entity.js';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const isSsl = configService.get<string>('DATABASE_SSL') === 'true';
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        const isSsl =
+          configService.get<string>('DATABASE_SSL') === 'true' ||
+          (databaseUrl ? databaseUrl.includes('sslmode=require') || databaseUrl.includes('neon.tech') : false);
+
+        if (databaseUrl) {
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            entities: [User, Link, Click],
+            autoLoadEntities: true,
+            synchronize: false,
+            ssl: isSsl ? { rejectUnauthorized: false } : false,
+          };
+        }
+
         return {
           type: 'postgres',
-
           host: configService.get<string>('DATABASE_HOST', 'localhost'),
           port: configService.get<number>('DATABASE_PORT', 5432),
           username: configService.get<string>('DATABASE_USER', 'postgres'),

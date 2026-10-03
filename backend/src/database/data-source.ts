@@ -6,18 +6,33 @@ import { Click } from '../analytics/entities/click.entity.js';
 
 config();
 
-const sslMode = process.env.DATABASE_SSL === 'true';
+const databaseUrl = process.env.DATABASE_URL;
+const sslMode =
+  process.env.DATABASE_SSL === 'true' ||
+  (databaseUrl ? databaseUrl.includes('sslmode=require') || databaseUrl.includes('neon.tech') : false);
 
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DATABASE_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || '5433', 10),
-  username: process.env.DATABASE_USER || 'postgres',
-  password: process.env.DATABASE_PASSWORD || 'postgres',
-  database: process.env.DATABASE_NAME || 'link_shortener',
-  entities: [User, Link, Click],
-  migrations: ['dist/database/migrations/*.js'],
-  synchronize: false,
-  ssl: sslMode ? { rejectUnauthorized: false } : false,
-});
+export const AppDataSource = new DataSource(
+  databaseUrl
+    ? {
+        type: 'postgres',
+        url: databaseUrl,
+        entities: [User, Link, Click],
+        migrations: ['dist/database/migrations/*.js'],
+        synchronize: false,
+        ssl: sslMode ? { rejectUnauthorized: false } : false,
+      }
+    : {
+        type: 'postgres',
+        host: process.env.DATABASE_HOST || 'localhost',
+        port: parseInt(process.env.DATABASE_PORT || '5433', 10),
+        username: process.env.DATABASE_USER || 'postgres',
+        password: process.env.DATABASE_PASSWORD || 'postgres',
+        database: process.env.DATABASE_NAME || 'link_shortener',
+        entities: [User, Link, Click],
+        migrations: ['dist/database/migrations/*.js'],
+        synchronize: false,
+        ssl: sslMode ? { rejectUnauthorized: false } : false,
+      },
+);
+
 
