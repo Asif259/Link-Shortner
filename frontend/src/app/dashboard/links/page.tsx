@@ -11,7 +11,7 @@ import { EditLinkDialog } from '@/components/dashboard/EditLinkDialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { useToast } from '@/components/ui/toast';
-import { getLinks, deleteLink, updateLink } from '@/lib/api/links';
+import { getLinks, deleteLink, disableLink, enableLink } from '@/lib/api/links';
 import type { Link as LinkItem } from '@/lib/api/links';
 import { Loader2, Menu, X, LinkIcon, Sparkles, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -74,11 +74,13 @@ export default function LinksPage() {
   };
 
   const handleDisable = async (link: LinkItem) => {
-    const newStatus = link.status === 'disabled' ? 'active' : 'disabled';
+    const isCurrentlyDisabled = link.status === 'disabled';
     try {
-      const updated = await updateLink(link.id, { status: newStatus });
+      const updated = isCurrentlyDisabled
+        ? await enableLink(link.id)
+        : await disableLink(link.id);
       setLinks((prev) => prev.map((l) => (l.id === link.id ? updated : l)));
-      toast(`Link is now ${newStatus}`, 'success');
+      toast(`Link is now ${updated.status ?? (isCurrentlyDisabled ? 'active' : 'disabled')}`, 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Update failed', 'error');
     }

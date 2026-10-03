@@ -73,3 +73,9 @@ export async function disableLink(id: string): Promise<Link> {
     method: 'POST',
   });
 }
+
+export async function enableLink(id: string): Promise<Link> {
+  return apiClient<Link>(`/links/${id}/enable`, {
+    method: 'POST',
+  });
+}
