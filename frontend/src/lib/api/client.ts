@@ -1,5 +1,42 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+let isRedirecting = false;
+
+/**
+ * Handles 401 Unauthorized responses for protected endpoints.
+ * Clears persistent credentials, resets Zustand auth state,
+ * and routes the user back to the login page.
+ */
+async function handleUnauthorized(endpoint: string): Promise<void> {
+  // Never intercept authentication attempts (invalid credentials legitimately return 401)
+  if (endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/register')) {
+    return;
+  }
+
+  if (typeof window === 'undefined') return;
+
+  try {
+    localStorage.removeItem('linkly-auth');
+  } catch {
+    // Ignore storage access errors
+  }
+
+  try {
+    const { useAuthStore } = await import('@/lib/stores/auth.store');
+    useAuthStore.getState().logout();
+  } catch {
+    // Ignore dynamic import failure
+  }
+
+  if (!isRedirecting) {
+    const currentPath = window.location.pathname;
+    if (!currentPath.startsWith('/login') && !currentPath.startsWith('/register')) {
+      isRedirecting = true;
+      window.location.href = '/login';
+    }
+  }
+}
+
 /**
  * Reads the JWT from the Zustand persist storage.
  * Works in both SSR and client contexts without importing the store
@@ -38,6 +75,10 @@ export async function apiClient<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      await handleUnauthorized(endpoint);
+    }
+
     let errorMessage = `API error: ${response.status} ${response.statusText}`;
     try {
       const errorJson = await response.json();
@@ -54,3 +95,4 @@ export async function apiClient<T>(
 
   return response.json() as Promise<T>;
 }
+
