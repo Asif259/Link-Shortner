@@ -51,3 +51,4 @@ temp/
 *.pid
 *.seed
 *.pid.lock
+.neon
