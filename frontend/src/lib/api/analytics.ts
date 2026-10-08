@@ -149,7 +149,7 @@ export async function getAnalyticsOverview(
   return apiClient<AnalyticsOverviewResponse>(`/analytics/overview${qs}`);
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 export async function downloadAnalyticsCsv(filter?: DateRangeFilter, linkId?: string): Promise<void> {
   const qs = buildAnalyticsQueryParams(filter);
