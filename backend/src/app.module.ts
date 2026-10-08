@@ -3,6 +3,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { AppController } from './app.controller.js';
+import { AppService } from './app.service.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { LinksModule } from './links/links.module.js';
@@ -91,6 +93,7 @@ import { Group } from './groups/entities/group.entity.js';
     AnalyticsModule,
     GroupsModule,
   ],
+  controllers: [AppController],
   /**
    * Global ThrottlerGuard applies the 'default' throttler to every route.
    *
@@ -99,6 +102,7 @@ import { Group } from './groups/entities/group.entity.js';
    * This ensures no endpoint is accidentally left without rate limiting.
    */
   providers: [
+    AppService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
