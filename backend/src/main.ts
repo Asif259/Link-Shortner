@@ -46,12 +46,33 @@ async function bootstrap() {
    * for smooth dev + staging + production setup.
    */
   const frontendEnv = process.env.FRONTEND_URL ?? 'http://localhost:3001';
-  const allowedOrigins = frontendEnv.includes(',')
-    ? frontendEnv.split(',').map((url) => url.trim())
-    : frontendEnv;
+  const configuredOrigins = frontendEnv
+    .split(',')
+    .map((url) => url.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (e.g. server-to-server, mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.replace(/\/+$/, '');
+      const isAllowed = configuredOrigins.some((allowed) => {
+        if (allowed === '*') return true;
+        if (allowed === normalizedOrigin) return true;
+        if (allowed.startsWith('*.') && normalizedOrigin.endsWith(allowed.slice(1))) {
+          return true;
+        }
+        return false;
+      });
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      console.warn(`[CORS] Blocked request from origin: "${origin}". Configured origins: ${JSON.stringify(configuredOrigins)}`);
+      callback(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
