@@ -101,13 +101,7 @@ async function bootstrap() {
    */
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  const rawPort = process.env.PORT;
-  if (rawPort && isNaN(Number(rawPort))) {
-    // String socket path (e.g. Hostinger Passenger domain socket)
-    await app.listen(rawPort);
-  } else {
-    const port = parseInt(rawPort ?? '3000', 10);
-    await app.listen(port, '0.0.0.0');
-  }
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
 }
 await bootstrap();
